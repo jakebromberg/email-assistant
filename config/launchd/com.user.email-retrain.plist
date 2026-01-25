@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.email-retrain</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/jake/Developer/email-assistant/venv/bin/python</string>
+        <string>/Users/jake/Developer/email-assistant/scripts/retrain_model.py</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>  <!-- Sunday -->
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/jake/Developer/email-assistant/logs/retrain.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/jake/Developer/email-assistant/logs/retrain-error.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/jake/Developer/email-assistant</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>

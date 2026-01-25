@@ -55,7 +55,12 @@ Gmail API → Features → ML Model → Actions
   - [x] Threshold-based decision logic
   - [x] Email categorization system
   - [x] Model evaluation and metrics
-- [ ] Phase 5: Automation and feedback loop
+- [x] Phase 5: Automation and feedback loop
+  - [x] Daily triage pipeline
+  - [x] Interactive CLI feedback tool
+  - [x] Implicit feedback collection
+  - [x] Model retraining with feedback
+  - [x] launchd scheduling for macOS
 
 ## Prerequisites
 
@@ -297,6 +302,45 @@ python scripts/train_model.py --test-size 0.3
 # Test trained model
 python scripts/test_model.py
 python scripts/test_model.py --model models/model_v20240101.txt --limit 20
+```
+
+**Run triage (Phase 5):**
+```bash
+# Daily triage (DRY RUN - no changes)
+python scripts/triage_inbox.py --dry-run
+
+# Run triage for real
+python scripts/triage_inbox.py
+
+# Custom options
+python scripts/triage_inbox.py --days 2 --no-embeddings
+
+# Review bot decisions
+python scripts/review_decisions.py
+python scripts/review_decisions.py --days 7 --filter archived
+
+# Collect implicit feedback
+python scripts/collect_feedback.py --days 7
+
+# Retrain model with feedback
+python scripts/retrain_model.py
+```
+
+**Schedule automation (macOS):**
+```bash
+# Copy launchd configs
+cp config/launchd/*.plist ~/Library/LaunchAgents/
+
+# Load agents
+launchctl load ~/Library/LaunchAgents/com.user.email-triage.plist
+launchctl load ~/Library/LaunchAgents/com.user.email-feedback.plist
+launchctl load ~/Library/LaunchAgents/com.user.email-retrain.plist
+
+# Check status
+launchctl list | grep email
+
+# View logs
+tail -f logs/triage.log
 ```
 
 ## Configuration
