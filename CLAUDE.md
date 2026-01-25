@@ -2,9 +2,16 @@
 
 An intelligent Gmail triage system that learns from your email behavior to automatically archive newsletters and low-priority emails while keeping important emails in your inbox.
 
-## Current Status: Phase 1 Complete ✅
+## Current Status: Phase 2 Complete ✅
 
-The foundation is built and ready. The Gmail API integration is fully functional with OAuth2 authentication, email fetching, and modification operations.
+**Phase 1: Gmail API Foundation** - Complete ✅
+- OAuth2 authentication, email fetching, operations
+
+**Phase 2: Data Collection & Storage** - Complete ✅
+- SQLite database with schema
+- Email repository and data access layer
+- Historical email export functionality
+- Action and feedback tracking
 
 ## Architecture
 

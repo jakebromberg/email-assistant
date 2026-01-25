@@ -32,13 +32,18 @@ Gmail API → Features → ML Model → Actions
 
 ## Project Status
 
-**Current Phase**: Phase 1 - Gmail API Foundation ✅
+**Current Phase**: Phase 2 - Data Collection & Storage ✅
 
-- [x] Gmail OAuth2 authentication
-- [x] Email fetching and parsing
-- [x] Label and archive operations
-- [x] Batch operations and rate limiting
-- [ ] Phase 2: Data collection (SQLite database)
+- [x] Phase 1: Gmail API Foundation
+  - [x] Gmail OAuth2 authentication
+  - [x] Email fetching and parsing
+  - [x] Label and archive operations
+  - [x] Batch operations and rate limiting
+- [x] Phase 2: Data collection & storage
+  - [x] SQLite database with schema
+  - [x] Email repository layer
+  - [x] Historical email export
+  - [x] Action and feedback tracking
 - [ ] Phase 3: Feature engineering
 - [ ] Phase 4: ML model training
 - [ ] Phase 5: Automation and feedback loop
@@ -175,6 +180,82 @@ result = ops.add_labels(
 - `create_label(label_name)` - Create new label
 - `get_or_create_label(label_name)` - Get or create label
 
+### Database API (Phase 2)
+
+**Database** - Connection management:
+```python
+from src.database import Database
+
+db = Database("data/emails.db")
+db.create_tables()
+
+with db.get_session() as session:
+    # Use session for queries
+    pass
+```
+
+**EmailRepository** - Data access:
+```python
+from src.database import EmailRepository
+
+with db.get_session() as session:
+    repo = EmailRepository(session)
+
+    # Save emails
+    repo.save_email(gmail_email)
+    repo.save_emails_batch(gmail_emails)
+
+    # Query emails
+    email = repo.get_by_id("msg123")
+    emails = repo.get_by_sender("sender@example.com")
+    unread = repo.get_unread(limit=50)
+
+    # Record actions
+    repo.record_action("msg123", "archive", source="bot")
+
+    # Save feedback
+    repo.save_feedback("msg123", decision_correct=False,
+                      user_comment="Always important")
+
+    # Get statistics
+    stats = repo.get_sender_stats("sender@example.com")
+```
+
+**EmailCollector** - Historical export:
+```python
+from src.collectors import EmailCollector
+
+collector = EmailCollector(client, db)
+
+# Export last 6 months
+count = collector.export_historical(months=6)
+
+# Export recent emails
+count = collector.export_recent(days=1)
+
+# Update specific emails
+collector.update_email("msg123")
+```
+
+### Command-Line Scripts
+
+**Export historical emails:**
+```bash
+# Export last 6 months
+python scripts/export_history.py --months 6
+
+# Export with limits
+python scripts/export_history.py --months 3 --max 5000
+
+# Custom database path
+python scripts/export_history.py --db-path data/custom.db
+```
+
+**Test database:**
+```bash
+python scripts/test_database.py
+```
+
 ## Configuration
 
 Configuration is managed via environment variables in `.env`:
@@ -192,6 +273,8 @@ DATA_DIR=data
 ```
 email-assistant/
 ├── README.md                 # This file
+├── CLAUDE.md                # Project overview and roadmap
+├── SETUP.md                 # Quick setup guide
 ├── requirements.txt          # Python dependencies
 ├── .env.example             # Environment template
 ├── .gitignore               # Git ignore rules
@@ -201,14 +284,23 @@ email-assistant/
 │   │   ├── client.py        # API client
 │   │   ├── models.py        # Email data models
 │   │   └── operations.py    # Email operations
+│   ├── database/            # Database layer (Phase 2)
+│   │   ├── schema.py        # SQLAlchemy models
+│   │   ├── database.py      # Connection management
+│   │   └── repository.py    # Data access layer
+│   ├── collectors/          # Email collectors (Phase 2)
+│   │   └── email_collector.py  # Historical export
 │   └── utils/               # Utilities
 │       ├── config.py        # Configuration
 │       └── logger.py        # Logging
 ├── scripts/                 # Command-line scripts
 │   ├── authenticate.py      # OAuth setup
-│   └── test_connection.py   # Test API connection
+│   ├── test_connection.py   # Test API connection
+│   ├── test_database.py     # Test database setup (Phase 2)
+│   └── export_history.py    # Export historical emails (Phase 2)
 ├── tests/                   # Unit tests
-│   └── test_gmail/
+│   ├── test_gmail/
+│   └── test_database/
 ├── credentials/             # OAuth credentials (gitignored)
 ├── logs/                    # Log files (gitignored)
 └── data/                    # Data storage (gitignored)
