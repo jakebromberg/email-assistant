@@ -2,11 +2,25 @@
 
 Follow these steps to get the Gmail Email Triage Bot running.
 
+## Step 0: Verify Python Version
+
+**Required: Python 3.12 or 3.13**
+
+```bash
+# Check your Python version
+python3 --version
+
+# If you have Python 3.14 (too new) or 3.11 (too old), install Python 3.12
+brew install python@3.12
+```
+
+**Note**: Python 3.14 is not yet recommended as many ML packages (scikit-learn, numpy) don't have pre-built wheels and require compilation from source.
+
 ## Step 1: Install Dependencies
 
 ```bash
-# Create and activate virtual environment
-python3 -m venv venv
+# Create and activate virtual environment with Python 3.12
+python3.12 -m venv venv
 source venv/bin/activate
 
 # Install dependencies

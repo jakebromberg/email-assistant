@@ -64,7 +64,7 @@ Gmail API → Features → ML Model → Actions
 
 ## Prerequisites
 
-1. **Python 3.11+**
+1. **Python 3.12 or 3.13** (Python 3.14 not yet recommended due to limited ML package support)
 2. **Gmail Account** with API access enabled
 3. **Google Cloud Project** with Gmail API enabled
 
@@ -92,8 +92,14 @@ Gmail API → Features → ML Model → Actions
 # Clone or navigate to project directory
 cd /Users/jake/Developer/email-assistant
 
-# Create virtual environment
-python3 -m venv venv
+# Verify Python version (should be 3.12 or 3.13)
+python3 --version
+
+# If you have Python 3.14, install Python 3.12
+# brew install python@3.12
+
+# Create virtual environment with Python 3.12
+python3.12 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
@@ -460,6 +466,41 @@ If you see "Credentials file not found":
 1. Ensure you've downloaded credentials from Google Cloud Console
 2. Save as `credentials/credentials.json`
 3. Run `python scripts/authenticate.py`
+
+### Python Version Issues
+
+If you encounter build errors when installing dependencies:
+
+**Error: "No matching distribution found for torch==2.9.0"** or **"Preparing metadata failed"**
+- Likely caused by Python 3.14 being too new or Python 3.11 being too old
+- Solution: Use Python 3.12 or 3.13
+
+```bash
+# Check your version
+python3 --version
+
+# Install Python 3.12 if needed
+brew install python@3.12
+
+# Recreate virtualenv
+rm -rf venv
+python3.12 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Error: "No space left on device"** during installation
+- scikit-learn and other packages need to compile from source
+- Solution: Free up disk space or use Python 3.12/3.13 (which have pre-built wheels)
+
+```bash
+# Check disk space
+df -h .
+
+# Clean up space
+brew cleanup -s
+pip cache purge
+```
 
 ## Next Steps
 
