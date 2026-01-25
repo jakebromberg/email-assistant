@@ -204,3 +204,74 @@ class FeedbackReview(Base):
             f"<FeedbackReview(message_id={self.message_id[:10]}..., "
             f"decision_correct={self.decision_correct})>"
         )
+
+
+class EmailFeatures(Base):
+    """
+    Computed features for an email.
+
+    Stores metadata features, historical patterns, and topic embeddings
+    for ML model training and inference.
+
+    Attributes:
+        message_id: Foreign key to emails table (primary key)
+
+        # Metadata features
+        sender_domain: Domain of sender email
+        sender_address_hash: Hash of sender address for privacy
+        is_newsletter: Whether email appears to be a newsletter
+        day_of_week: Day of week (0=Monday, 6=Sunday)
+        hour_of_day: Hour of day (0-23)
+        subject_length: Length of subject line
+        body_length: Length of email body
+        has_attachments: Whether email has attachments
+        thread_length: Number of emails in thread
+
+        # Historical pattern features
+        sender_email_count: Total emails from this sender
+        sender_open_rate: Percentage of emails from sender that were opened
+        sender_days_since_last: Days since last email from sender
+        domain_open_rate: Open rate for sender's domain
+
+        # Topic embeddings (stored as JSON arrays)
+        subject_embedding: 384-dim embedding of subject
+        body_embedding: 384-dim embedding of body (first 512 tokens)
+
+        # Computed timestamp
+        computed_at: When features were computed
+    """
+
+    __tablename__ = 'email_features'
+
+    message_id = Column(String, ForeignKey('emails.message_id'), primary_key=True, index=True)
+
+    # Metadata features
+    sender_domain = Column(String, index=True)
+    sender_address_hash = Column(String, index=True)
+    is_newsletter = Column(Boolean, default=False, index=True)
+    day_of_week = Column(Integer)  # 0=Monday, 6=Sunday
+    hour_of_day = Column(Integer)  # 0-23
+    subject_length = Column(Integer)
+    body_length = Column(Integer)
+    has_attachments = Column(Boolean, default=False)
+    thread_length = Column(Integer, default=1)
+
+    # Historical pattern features
+    sender_email_count = Column(Integer, default=0)
+    sender_open_rate = Column(Float, default=0.0)
+    sender_days_since_last = Column(Float, nullable=True)
+    domain_open_rate = Column(Float, default=0.0)
+
+    # Topic embeddings (as JSON arrays)
+    subject_embedding = Column(JSON, nullable=True)
+    body_embedding = Column(JSON, nullable=True)
+
+    # Timestamp
+    computed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        return (
+            f"<EmailFeatures(message_id={self.message_id[:10]}..., "
+            f"sender_domain={self.sender_domain})>"
+        )

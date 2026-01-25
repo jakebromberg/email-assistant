@@ -1,7 +1,7 @@
 """Database models and access layer."""
 
 from .database import Database
-from .schema import Email, EmailLabel, EmailAction, FeedbackReview
+from .schema import Email, EmailLabel, EmailAction, FeedbackReview, EmailFeatures
 from .repository import EmailRepository
 
 __all__ = [
@@ -10,5 +10,6 @@ __all__ = [
     "EmailLabel",
     "EmailAction",
     "FeedbackReview",
+    "EmailFeatures",
     "EmailRepository",
 ]

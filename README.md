@@ -32,7 +32,7 @@ Gmail API → Features → ML Model → Actions
 
 ## Project Status
 
-**Current Phase**: Phase 2 - Data Collection & Storage ✅
+**Current Phase**: Phase 3 - Feature Engineering ✅
 
 - [x] Phase 1: Gmail API Foundation
   - [x] Gmail OAuth2 authentication
@@ -44,7 +44,11 @@ Gmail API → Features → ML Model → Actions
   - [x] Email repository layer
   - [x] Historical email export
   - [x] Action and feedback tracking
-- [ ] Phase 3: Feature engineering
+- [x] Phase 3: Feature engineering
+  - [x] Metadata feature extraction
+  - [x] Historical pattern features
+  - [x] Topic embeddings (sentence-transformers)
+  - [x] Feature storage and retrieval
 - [ ] Phase 4: ML model training
 - [ ] Phase 5: Automation and feedback loop
 
@@ -256,6 +260,24 @@ python scripts/export_history.py --db-path data/custom.db
 python scripts/test_database.py
 ```
 
+**Build features (Phase 3):**
+```bash
+# Test feature extraction
+python scripts/test_features.py
+
+# Build features for all emails
+python scripts/build_features.py
+
+# Build features with options
+python scripts/build_features.py --batch-size 50 --limit 1000
+
+# Skip embeddings (faster, less accurate)
+python scripts/build_features.py --skip-embeddings
+
+# Only compute embeddings for emails with metadata
+python scripts/build_features.py --embeddings-only
+```
+
 ## Configuration
 
 Configuration is managed via environment variables in `.env`:
@@ -290,6 +312,11 @@ email-assistant/
 │   │   └── repository.py    # Data access layer
 │   ├── collectors/          # Email collectors (Phase 2)
 │   │   └── email_collector.py  # Historical export
+│   ├── features/            # Feature engineering (Phase 3)
+│   │   ├── metadata.py      # Metadata extraction
+│   │   ├── historical.py    # Historical patterns
+│   │   ├── embeddings.py    # Topic embeddings
+│   │   └── feature_store.py # Feature storage
 │   └── utils/               # Utilities
 │       ├── config.py        # Configuration
 │       └── logger.py        # Logging
@@ -297,7 +324,9 @@ email-assistant/
 │   ├── authenticate.py      # OAuth setup
 │   ├── test_connection.py   # Test API connection
 │   ├── test_database.py     # Test database setup (Phase 2)
-│   └── export_history.py    # Export historical emails (Phase 2)
+│   ├── export_history.py    # Export historical emails (Phase 2)
+│   ├── test_features.py     # Test feature extraction (Phase 3)
+│   └── build_features.py    # Build features for emails (Phase 3)
 ├── tests/                   # Unit tests
 │   ├── test_gmail/
 │   └── test_database/
