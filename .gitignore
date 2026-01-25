@@ -21,6 +21,11 @@ data/
 *.db
 *.sqlite
 
+# Models
+models/*.txt
+models/*.pkl
+models/*.json
+
 # IDE
 .vscode/
 .idea/

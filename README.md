@@ -49,7 +49,12 @@ Gmail API → Features → ML Model → Actions
   - [x] Historical pattern features
   - [x] Topic embeddings (sentence-transformers)
   - [x] Feature storage and retrieval
-- [ ] Phase 4: ML model training
+- [x] Phase 4: ML model training
+  - [x] LightGBM classifier training
+  - [x] Email scoring and inference
+  - [x] Threshold-based decision logic
+  - [x] Email categorization system
+  - [x] Model evaluation and metrics
 - [ ] Phase 5: Automation and feedback loop
 
 ## Prerequisites
@@ -276,6 +281,22 @@ python scripts/build_features.py --skip-embeddings
 
 # Only compute embeddings for emails with metadata
 python scripts/build_features.py --embeddings-only
+```
+
+**Train model (Phase 4):**
+```bash
+# Train LightGBM model
+python scripts/train_model.py
+
+# Train without embeddings (faster)
+python scripts/train_model.py --no-embeddings
+
+# Custom test split
+python scripts/train_model.py --test-size 0.3
+
+# Test trained model
+python scripts/test_model.py
+python scripts/test_model.py --model models/model_v20240101.txt --limit 20
 ```
 
 ## Configuration

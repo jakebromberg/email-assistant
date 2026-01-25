@@ -2,7 +2,7 @@
 
 An intelligent Gmail triage system that learns from your email behavior to automatically archive newsletters and low-priority emails while keeping important emails in your inbox.
 
-## Current Status: Phase 3 Complete ✅
+## Current Status: Phase 4 Complete ✅
 
 **Phase 1: Gmail API Foundation** - Complete ✅
 - OAuth2 authentication, email fetching, operations
@@ -18,6 +18,12 @@ An intelligent Gmail triage system that learns from your email behavior to autom
 - Historical pattern features (open rates, email frequency)
 - Topic embeddings via sentence-transformers (384-dim)
 - Feature storage with database integration
+
+**Phase 4: ML Model Training** - Complete ✅
+- LightGBM classifier for email importance prediction
+- Email scoring with confidence-based decisions
+- Automated categorization system (Newsletter, Promotional, etc.)
+- Comprehensive evaluation metrics and threshold tuning
 
 ## Architecture
 
