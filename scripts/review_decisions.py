@@ -19,6 +19,7 @@ Usage:
 """
 
 import sys
+import os
 import tty
 import termios
 import argparse
@@ -93,6 +94,11 @@ def getch():
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
     return ch
+
+
+def clear_screen():
+    """Clear the terminal screen."""
+    os.system('clear' if os.name != 'nt' else 'cls')
 
 
 def main():
@@ -185,9 +191,14 @@ def main():
             if not email:
                 continue
 
-            # Display email info
+            # Clear screen and display email info
+            clear_screen()
+
+            # Progress header
+            print(colored(f"Bot Decision Review - Email {i}/{len(action_data_list)}", Colors.CYAN + Colors.BOLD))
+            progress_stats = f"Reviewed: {reviewed} | Correct: {correct_count} | Corrected: {corrected_count}"
+            print(colored(progress_stats, Colors.YELLOW))
             print(colored("=" * 80, Colors.BLUE))
-            print(colored(f"\nEmail {i}/{len(action_data_list)}", Colors.BOLD))
             print(f"{colored('From:', Colors.CYAN)} {email.from_name or email.from_address}")
             print(f"{colored('Subject:', Colors.CYAN)} {email.subject}")
             print(f"{colored('Date:', Colors.CYAN)} {email.date.strftime('%Y-%m-%d %H:%M')}")
@@ -375,21 +386,20 @@ def main():
             if response == 'q':
                 break
 
-            # Add blank line between emails
-            if email_index < len(action_data_list):
-                print()
-
         # Final confirmation
         if reviewed > 0:
-            print(colored("\n" + "=" * 80, Colors.BLUE))
-            print(colored("Review complete!", Colors.GREEN + Colors.BOLD))
+            clear_screen()
+            print(colored("=" * 80, Colors.BLUE))
+            print(colored("Review Complete!", Colors.GREEN + Colors.BOLD))
+            print(colored("=" * 80, Colors.BLUE))
             print(f"\nYou reviewed {colored(str(reviewed), Colors.BOLD)} decision(s).")
             print(colored("\nPress Enter to finalize and save all feedback...", Colors.BOLD), end='', flush=True)
             input()  # Wait for Enter
             print(colored("✓ All feedback finalized", Colors.GREEN))
 
     # Summary
-    print(colored("\n=== Review Summary ===", Colors.CYAN + Colors.BOLD))
+    clear_screen()
+    print(colored("=== Review Summary ===", Colors.CYAN + Colors.BOLD))
     print(f"{colored('Total reviewed:', Colors.BOLD)} {colored(str(reviewed), Colors.CYAN)}")
 
     if reviewed > 0:
