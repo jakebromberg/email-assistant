@@ -56,6 +56,9 @@ def main():
     # Get bot actions to review
     start_date = datetime.now() - timedelta(days=args.days)
 
+    # Get bot actions to review (extract data before session closes)
+    action_data_list = []
+
     with db.get_session() as session:
         # Query bot actions
         query = session.query(EmailAction).filter(
@@ -74,12 +77,21 @@ def main():
 
         actions = query.all()
 
-    if not actions:
+        # Extract data while session is active
+        for action in actions:
+            action_data_list.append({
+                'message_id': action.message_id,
+                'action_type': action.action_type,
+                'timestamp': action.timestamp,
+                'action_data': action.action_data,
+            })
+
+    if not action_data_list:
         print(f"\nNo bot decisions found in last {args.days} day(s)")
         return
 
     print(f"\n=== Bot Decision Review ===")
-    print(f"Found {len(actions)} decisions to review\n")
+    print(f"Found {len(action_data_list)} decisions to review\n")
 
     # Review each decision
     reviewed = 0
@@ -91,9 +103,9 @@ def main():
     with db.get_session() as session:
         repo = EmailRepository(session)
 
-        for i, action in enumerate(actions, 1):
+        for i, action_data in enumerate(action_data_list, 1):
             # Get email
-            email = repo.get_by_id(action.message_id)
+            email = repo.get_by_id(action_data['message_id'])
             if not email:
                 continue
 
@@ -107,10 +119,10 @@ def main():
             print()
 
             # Display bot decision
-            action_type = action.action_type.capitalize()
-            score = action.action_data.get('score', 'N/A')
-            confidence = action.action_data.get('confidence', 'N/A')
-            labels = action.action_data.get('labels', [])
+            action_type = action_data['action_type'].capitalize()
+            score = action_data['action_data'].get('score', 'N/A')
+            confidence = action_data['action_data'].get('confidence', 'N/A')
+            labels = action_data['action_data'].get('labels', [])
 
             print(f"Bot Decision: {action_type}")
             print(f"Score: {score}")
