@@ -25,6 +25,55 @@ from src.ml import EmailCategorizer
 from src.utils import Config, setup_logger
 
 
+# ANSI color codes
+class Colors:
+    """ANSI color codes for terminal output."""
+    HEADER = '\033[95m'      # Magenta
+    BLUE = '\033[94m'        # Blue
+    CYAN = '\033[96m'        # Cyan
+    GREEN = '\033[92m'       # Green
+    YELLOW = '\033[93m'      # Yellow
+    RED = '\033[91m'         # Red
+    BOLD = '\033[1m'         # Bold
+    UNDERLINE = '\033[4m'    # Underline
+    END = '\033[0m'          # Reset
+
+
+def colored(text, color):
+    """Wrap text in color codes."""
+    return f"{color}{text}{Colors.END}"
+
+
+def format_score(score):
+    """Format score with color based on value."""
+    if isinstance(score, (int, float)):
+        if score >= 0.7:
+            return colored(f"{score:.3f}", Colors.GREEN)
+        elif score <= 0.3:
+            return colored(f"{score:.3f}", Colors.RED)
+        else:
+            return colored(f"{score:.3f}", Colors.YELLOW)
+    return score
+
+
+def format_confidence(confidence):
+    """Format confidence with color."""
+    if confidence == 'high':
+        return colored(confidence, Colors.GREEN)
+    elif confidence == 'low':
+        return colored(confidence, Colors.YELLOW)
+    return confidence
+
+
+def format_action(action_type):
+    """Format action type with color."""
+    if action_type.lower() == 'archive':
+        return colored(action_type, Colors.RED)
+    elif action_type.lower() == 'keep':
+        return colored(action_type, Colors.GREEN)
+    return action_type
+
+
 def main():
     """Interactive feedback review."""
     parser = argparse.ArgumentParser(
@@ -87,11 +136,13 @@ def main():
             })
 
     if not action_data_list:
-        print(f"\nNo bot decisions found in last {args.days} day(s)")
+        print(colored(f"\nNo bot decisions found in last {args.days} day(s)", Colors.YELLOW))
         return
 
-    print(f"\n=== Bot Decision Review ===")
-    print(f"Found {len(action_data_list)} decisions to review\n")
+    print(colored(f"\n{'=' * 30}", Colors.CYAN))
+    print(colored("   Bot Decision Review", Colors.CYAN + Colors.BOLD))
+    print(colored(f"{'=' * 30}\n", Colors.CYAN))
+    print(f"Found {colored(str(len(action_data_list)), Colors.BOLD)} decisions to review\n")
 
     # Review each decision
     reviewed = 0
@@ -110,12 +161,12 @@ def main():
                 continue
 
             # Display email info
-            print("=" * 80)
-            print(f"\nEmail {i}/{len(actions)}")
-            print(f"From: {email.from_name or email.from_address}")
-            print(f"Subject: {email.subject}")
-            print(f"Date: {email.date.strftime('%Y-%m-%d %H:%M')}")
-            print(f"Snippet: {email.snippet[:100]}...")
+            print(colored("=" * 80, Colors.BLUE))
+            print(colored(f"\nEmail {i}/{len(action_data_list)}", Colors.BOLD))
+            print(f"{colored('From:', Colors.CYAN)} {email.from_name or email.from_address}")
+            print(f"{colored('Subject:', Colors.CYAN)} {email.subject}")
+            print(f"{colored('Date:', Colors.CYAN)} {email.date.strftime('%Y-%m-%d %H:%M')}")
+            print(f"{colored('Snippet:', Colors.CYAN)} {email.snippet[:100] if email.snippet else 'N/A'}...")
             print()
 
             # Display bot decision
@@ -124,23 +175,23 @@ def main():
             confidence = action_data['action_data'].get('confidence', 'N/A')
             labels = action_data['action_data'].get('labels', [])
 
-            print(f"Bot Decision: {action_type}")
-            print(f"Score: {score}")
-            print(f"Confidence: {confidence}")
-            print(f"Labels: {', '.join(labels) if labels else 'None'}")
+            print(f"{colored('Bot Decision:', Colors.BOLD)} {format_action(action_type)}")
+            print(f"{colored('Score:', Colors.BOLD)} {format_score(score)}")
+            print(f"{colored('Confidence:', Colors.BOLD)} {format_confidence(confidence)}")
+            print(f"{colored('Labels:', Colors.BOLD)} {', '.join(labels) if labels else colored('None', Colors.YELLOW)}")
             print()
 
             # Get feedback
             while True:
-                response = input("Decision correct? (y/n/s/c for comment/q to quit): ").lower().strip()
+                response = input(colored("Decision correct? ", Colors.BOLD) + "(y/n/s/c for comment/q to quit): ").lower().strip()
 
                 if response == 'q':
-                    print("\nReview ended by user")
+                    print(colored("\nReview ended by user", Colors.YELLOW))
                     break
 
                 elif response == 's':
                     # Skip
-                    print("Skipped\n")
+                    print(colored("Skipped", Colors.YELLOW) + "\n")
                     break
 
                 elif response == 'y':
@@ -152,17 +203,17 @@ def main():
                     )
                     correct_count += 1
                     reviewed += 1
-                    print("✓ Recorded as correct\n")
+                    print(colored("✓ Recorded as correct", Colors.GREEN) + "\n")
                     break
 
                 elif response == 'n':
                     # Incorrect - get details
-                    print("\nWhat was wrong?")
-                    print("1. Should archive (bot kept)")
-                    print("2. Should keep (bot archived)")
-                    print("3. Wrong label")
+                    print(colored("\nWhat was wrong?", Colors.BOLD))
+                    print(colored("1.", Colors.CYAN) + " Should archive (bot kept)")
+                    print(colored("2.", Colors.CYAN) + " Should keep (bot archived)")
+                    print(colored("3.", Colors.CYAN) + " Wrong label")
 
-                    choice = input("Choice (1/2/3): ").strip()
+                    choice = input(colored("\nChoice (1/2/3): ", Colors.BOLD)).strip()
 
                     if choice == '1':
                         repo.save_feedback(
@@ -172,7 +223,7 @@ def main():
                         )
                         corrected_count += 1
                         reviewed += 1
-                        print("✓ Feedback recorded\n")
+                        print(colored("✓ Feedback recorded", Colors.GREEN) + "\n")
                         break
 
                     elif choice == '2':
@@ -183,17 +234,17 @@ def main():
                         )
                         corrected_count += 1
                         reviewed += 1
-                        print("✓ Feedback recorded\n")
+                        print(colored("✓ Feedback recorded", Colors.GREEN) + "\n")
                         break
 
                     elif choice == '3':
                         # Show available categories
                         categories = categorizer.get_all_categories()
-                        print("\nAvailable categories:")
+                        print(colored("\nAvailable categories:", Colors.BOLD))
                         for idx, cat in enumerate(categories, 1):
-                            print(f"{idx}. {cat}")
+                            print(f"{colored(str(idx) + '.', Colors.CYAN)} {cat}")
 
-                        cat_choice = input("\nSelect correct category (number or name): ").strip()
+                        cat_choice = input(colored("\nSelect correct category (number or name): ", Colors.BOLD)).strip()
 
                         if cat_choice.isdigit() and 1 <= int(cat_choice) <= len(categories):
                             correct_label = categories[int(cat_choice) - 1]
@@ -207,12 +258,12 @@ def main():
                         )
                         corrected_count += 1
                         reviewed += 1
-                        print("✓ Feedback recorded\n")
+                        print(colored("✓ Feedback recorded", Colors.GREEN) + "\n")
                         break
 
                 elif response == 'c':
                     # Add comment
-                    comment = input("Enter feedback: ").strip()
+                    comment = input(colored("Enter feedback: ", Colors.BOLD)).strip()
 
                     if comment:
                         repo.save_feedback(
@@ -220,25 +271,34 @@ def main():
                             user_comment=comment
                         )
                         reviewed += 1
-                        print("✓ Comment saved\n")
+                        print(colored("✓ Comment saved", Colors.GREEN) + "\n")
                         break
                     else:
-                        print("No comment entered\n")
+                        print(colored("No comment entered", Colors.YELLOW) + "\n")
                         continue
 
                 else:
-                    print("Invalid choice. Use y/n/s/c/q")
+                    print(colored("Invalid choice. Use y/n/s/c/q", Colors.RED))
                     continue
 
             if response == 'q':
                 break
 
     # Summary
-    print("\n=== Review Summary ===")
-    print(f"Total reviewed: {reviewed}")
-    print(f"Correct: {correct_count} ({correct_count / reviewed * 100:.1f}%)" if reviewed > 0 else "Correct: 0")
-    print(f"Corrected: {corrected_count} ({corrected_count / reviewed * 100:.1f}%)" if reviewed > 0 else "Corrected: 0")
-    print("\nFeedback saved to database for model retraining")
+    print(colored("\n=== Review Summary ===", Colors.CYAN + Colors.BOLD))
+    print(f"{colored('Total reviewed:', Colors.BOLD)} {colored(str(reviewed), Colors.CYAN)}")
+
+    if reviewed > 0:
+        correct_pct = correct_count / reviewed * 100
+        corrected_pct = corrected_count / reviewed * 100
+
+        print(f"{colored('Correct:', Colors.BOLD)} {colored(str(correct_count), Colors.GREEN)} ({correct_pct:.1f}%)")
+        print(f"{colored('Corrected:', Colors.BOLD)} {colored(str(corrected_count), Colors.YELLOW)} ({corrected_pct:.1f}%)")
+    else:
+        print(f"{colored('Correct:', Colors.BOLD)} 0")
+        print(f"{colored('Corrected:', Colors.BOLD)} 0")
+
+    print(colored("\n✓ Feedback saved to database for model retraining", Colors.GREEN))
 
 
 if __name__ == '__main__':
