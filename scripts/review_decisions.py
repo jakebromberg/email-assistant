@@ -9,6 +9,7 @@ Keyboard shortcuts:
     n - Mark decision as incorrect (prompts for details)
     s - Skip this email
     c - Add a comment
+    u - Undo last feedback
     q - Quit review
 
 Usage:
@@ -28,7 +29,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database import Database, EmailRepository
-from src.database.schema import EmailAction
+from src.database.schema import EmailAction, FeedbackReview
 from src.ml import EmailCategorizer
 from src.utils import Config, setup_logger
 
@@ -168,13 +169,17 @@ def main():
     reviewed = 0
     correct_count = 0
     corrected_count = 0
+    feedback_history = []  # Track feedback for undo functionality
 
     categorizer = EmailCategorizer()
 
     with db.get_session() as session:
         repo = EmailRepository(session)
 
-        for i, action_data in enumerate(action_data_list, 1):
+        email_index = 0
+        while email_index < len(action_data_list):
+            action_data = action_data_list[email_index]
+            i = email_index + 1
             # Get email
             email = repo.get_by_id(action_data['message_id'])
             if not email:
@@ -203,17 +208,46 @@ def main():
 
             # Get feedback
             while True:
-                print(colored("Decision correct? ", Colors.BOLD) + "(y/n/s/c/q): ", end='', flush=True)
+                print(colored("Decision correct? ", Colors.BOLD) + "(y/n/s/c/u/q): ", end='', flush=True)
                 response = getch().lower()
                 print(response)  # Echo the character
 
-                if response == 'q':
+                if response == 'u':
+                    # Undo last feedback
+                    if not feedback_history:
+                        print(colored("Nothing to undo", Colors.YELLOW))
+                        import time
+                        time.sleep(1)  # Brief pause to show message
+                        break  # Refresh current screen
+
+                    last_feedback = feedback_history.pop()
+
+                    # Delete the feedback from database
+                    session.query(FeedbackReview).filter(
+                        FeedbackReview.message_id == last_feedback['message_id']
+                    ).delete()
+                    session.commit()
+
+                    # Update counters
+                    if last_feedback['action'] == 'correct':
+                        correct_count -= 1
+                        reviewed -= 1
+                    elif last_feedback['action'] in ['incorrect', 'comment']:
+                        corrected_count -= 1
+                        reviewed -= 1
+
+                    # Go back to that email
+                    email_index = last_feedback['email_index']
+                    break  # Refresh to show the undone email
+
+                elif response == 'q':
                     print(colored("\nReview ended by user", Colors.YELLOW))
                     break
 
                 elif response == 's':
                     # Skip
-                    print(colored("Skipped", Colors.YELLOW) + "\n")
+                    print(colored("Skipped", Colors.YELLOW))
+                    email_index += 1
                     break
 
                 elif response == 'y':
@@ -223,9 +257,16 @@ def main():
                         decision_correct=True,
                         label_correct=True
                     )
+                    session.commit()
+                    feedback_history.append({
+                        'email_index': email_index,
+                        'message_id': email.message_id,
+                        'action': 'correct'
+                    })
                     correct_count += 1
                     reviewed += 1
-                    print(colored("✓ Recorded as correct", Colors.GREEN) + "\n")
+                    print(colored("✓ Recorded as correct", Colors.GREEN))
+                    email_index += 1
                     break
 
                 elif response == 'n':
@@ -243,9 +284,16 @@ def main():
                             decision_correct=False,
                             correct_decision='archive'
                         )
+                        session.commit()
+                        feedback_history.append({
+                            'email_index': email_index,
+                            'message_id': email.message_id,
+                            'action': 'incorrect'
+                        })
                         corrected_count += 1
                         reviewed += 1
-                        print(colored("✓ Feedback recorded", Colors.GREEN) + "\n")
+                        print(colored("✓ Feedback recorded", Colors.GREEN))
+                        email_index += 1
                         break
 
                     elif choice == '2':
@@ -254,9 +302,16 @@ def main():
                             decision_correct=False,
                             correct_decision='keep'
                         )
+                        session.commit()
+                        feedback_history.append({
+                            'email_index': email_index,
+                            'message_id': email.message_id,
+                            'action': 'incorrect'
+                        })
                         corrected_count += 1
                         reviewed += 1
-                        print(colored("✓ Feedback recorded", Colors.GREEN) + "\n")
+                        print(colored("✓ Feedback recorded", Colors.GREEN))
+                        email_index += 1
                         break
 
                     elif choice == '3':
@@ -278,9 +333,16 @@ def main():
                             label_correct=False,
                             correct_label=correct_label
                         )
+                        session.commit()
+                        feedback_history.append({
+                            'email_index': email_index,
+                            'message_id': email.message_id,
+                            'action': 'incorrect'
+                        })
                         corrected_count += 1
                         reviewed += 1
-                        print(colored("✓ Feedback recorded", Colors.GREEN) + "\n")
+                        print(colored("✓ Feedback recorded", Colors.GREEN))
+                        email_index += 1
                         break
 
                 elif response == 'c':
@@ -292,19 +354,39 @@ def main():
                             message_id=email.message_id,
                             user_comment=comment
                         )
+                        session.commit()
+                        feedback_history.append({
+                            'email_index': email_index,
+                            'message_id': email.message_id,
+                            'action': 'comment'
+                        })
                         reviewed += 1
-                        print(colored("✓ Comment saved", Colors.GREEN) + "\n")
+                        print(colored("✓ Comment saved", Colors.GREEN))
+                        email_index += 1
                         break
                     else:
-                        print(colored("No comment entered", Colors.YELLOW) + "\n")
+                        print(colored("No comment entered", Colors.YELLOW))
                         continue
 
                 else:
-                    print(colored("Invalid choice. Use y/n/s/c/q", Colors.RED))
+                    print(colored("Invalid choice. Use y/n/s/c/u/q", Colors.RED))
                     continue
 
             if response == 'q':
                 break
+
+            # Add blank line between emails
+            if email_index < len(action_data_list):
+                print()
+
+        # Final confirmation
+        if reviewed > 0:
+            print(colored("\n" + "=" * 80, Colors.BLUE))
+            print(colored("Review complete!", Colors.GREEN + Colors.BOLD))
+            print(f"\nYou reviewed {colored(str(reviewed), Colors.BOLD)} decision(s).")
+            print(colored("\nPress Enter to finalize and save all feedback...", Colors.BOLD), end='', flush=True)
+            input()  # Wait for Enter
+            print(colored("✓ All feedback finalized", Colors.GREEN))
 
     # Summary
     print(colored("\n=== Review Summary ===", Colors.CYAN + Colors.BOLD))
