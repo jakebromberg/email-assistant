@@ -283,17 +283,20 @@ def main():
                 elif response == 'n':
                     # Incorrect - get details
                     print(colored("\nWhat was wrong?", Colors.BOLD))
-                    print(colored("1.", Colors.CYAN) + " Should archive (bot kept)")
-                    print(colored("2.", Colors.CYAN) + " Should keep (bot archived)")
-                    print(colored("3.", Colors.CYAN) + " Wrong label")
+                    print(colored("1.", Colors.CYAN) + " Wrong decision (archive vs keep)")
+                    print(colored("2.", Colors.CYAN) + " Wrong label")
 
-                    choice = input(colored("\nChoice (1/2/3): ", Colors.BOLD)).strip()
+                    choice = input(colored("\nChoice (1/2): ", Colors.BOLD)).strip()
 
                     if choice == '1':
+                        # Infer correct decision from what bot did
+                        bot_decision = action_data['action_type']
+                        correct_decision = 'keep' if bot_decision == 'archive' else 'archive'
+
                         repo.save_feedback(
                             message_id=email.message_id,
                             decision_correct=False,
-                            correct_decision='archive'
+                            correct_decision=correct_decision
                         )
                         session.commit()
                         feedback_history.append({
@@ -303,29 +306,11 @@ def main():
                         })
                         corrected_count += 1
                         reviewed += 1
-                        print(colored("✓ Feedback recorded", Colors.GREEN))
+                        print(colored(f"✓ Feedback recorded (should {correct_decision})", Colors.GREEN))
                         email_index += 1
                         break
 
                     elif choice == '2':
-                        repo.save_feedback(
-                            message_id=email.message_id,
-                            decision_correct=False,
-                            correct_decision='keep'
-                        )
-                        session.commit()
-                        feedback_history.append({
-                            'email_index': email_index,
-                            'message_id': email.message_id,
-                            'action': 'incorrect'
-                        })
-                        corrected_count += 1
-                        reviewed += 1
-                        print(colored("✓ Feedback recorded", Colors.GREEN))
-                        email_index += 1
-                        break
-
-                    elif choice == '3':
                         # Show available categories
                         categories = categorizer.get_all_categories()
                         print(colored("\nAvailable categories:", Colors.BOLD))
