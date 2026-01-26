@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
 
@@ -166,7 +166,8 @@ class Database:
         """
         try:
             with self.engine.connect() as conn:
-                conn.execute("VACUUM")
+                conn.execute(text("VACUUM"))
+                conn.commit()
             logger.info("Database vacuumed successfully")
         except Exception as e:
             logger.error(f"Failed to vacuum database: {e}")

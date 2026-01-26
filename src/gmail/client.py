@@ -340,6 +340,10 @@ class GmailClient:
 
                     def callback(request_id, response, exception):
                         if exception:
+                            # Log detailed error information
+                            status_code = getattr(getattr(exception, 'resp', None), 'status', 'unknown')
+                            error_msg = str(exception)
+
                             # Check if it's a rate limit error
                             if hasattr(exception, 'resp') and exception.resp.status == 429:
                                 rate_limit_hit = True
@@ -353,10 +357,16 @@ class GmailClient:
                                         except (ValueError, TypeError):
                                             pass
 
-                                logger.debug(f"Rate limit hit for message {msg_id[:10]}...")
+                                logger.debug(f"Rate limit (429) for message {msg_id[:10]}...")
                                 failed_messages.append((index, msg_id))
                             else:
-                                logger.warning(f"Failed to fetch message: {exception}")
+                                # Log non-rate-limit errors with full details
+                                logger.error(
+                                    f"Failed to fetch message {msg_id[:10]}... - "
+                                    f"Status: {status_code}, Error: {error_msg[:200]}"
+                                )
+                                # Still add to failed list for retry
+                                failed_messages.append((index, msg_id))
                         else:
                             batch_results.append((index, response))
                     return callback
