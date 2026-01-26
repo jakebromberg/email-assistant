@@ -1,8 +1,10 @@
 """Gmail API client for fetching emails."""
 
 import time
+import math
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Literal
+from typing import List, Optional, Dict, Any, Literal, Tuple
+from dataclasses import dataclass
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -14,6 +16,15 @@ from ..utils import get_logger
 
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class _BatchState:
+    """Internal state for batch request processing."""
+    batch_results: List[Tuple[int, Any]]
+    failed_messages: List[Tuple[int, str]]
+    rate_limit_hit: bool = False
+    retry_after_seconds: Optional[int] = None
 
 
 class GmailClient:
@@ -258,6 +269,157 @@ class GmailClient:
             logger.error(f"Failed to fetch message {message_id}: {e}")
             raise
 
+    def _handle_batch_error(
+        self,
+        exception: Exception,
+        msg_id: str,
+        state: _BatchState,
+        index: int
+    ):
+        """
+        Handle error from batch request callback.
+
+        Args:
+            exception: The exception that occurred
+            msg_id: Message ID that failed
+            state: Batch state to update
+            index: Index of failed message
+        """
+        status_code = getattr(getattr(exception, 'resp', None), 'status', 'unknown')
+        error_msg = str(exception)
+
+        # Check if it's a rate limit error
+        if hasattr(exception, 'resp') and exception.resp.status == 429:
+            state.rate_limit_hit = True
+
+            # Parse Retry-After header
+            if hasattr(exception.resp, 'get'):
+                retry_after = exception.resp.get('Retry-After')
+                if retry_after:
+                    try:
+                        state.retry_after_seconds = int(retry_after)
+                    except (ValueError, TypeError):
+                        pass
+
+            logger.debug(f"Rate limit (429) for message {msg_id[:10]}...")
+            state.failed_messages.append((index, msg_id))
+        else:
+            # Log non-rate-limit errors with full details
+            logger.error(
+                f"Failed to fetch message {msg_id[:10]}... - "
+                f"Status: {status_code}, Error: {error_msg[:200]}"
+            )
+            state.failed_messages.append((index, msg_id))
+
+    def _create_batch_callback(self, index: int, msg_id: str, state: _BatchState):
+        """
+        Create callback for batch request.
+
+        Args:
+            index: Index of message in batch
+            msg_id: Gmail message ID
+            state: Batch state to update
+
+        Returns:
+            Callback function for batch request
+        """
+        def callback(request_id, response, exception):
+            if exception:
+                self._handle_batch_error(exception, msg_id, state, index)
+            else:
+                state.batch_results.append((index, response))
+        return callback
+
+    def _execute_batch_with_retry(
+        self,
+        batch_ids: List[str],
+        message_format: str,
+        max_retries: int = 3
+    ) -> Tuple[List[Tuple[int, Any]], bool, Optional[int]]:
+        """
+        Execute batch request with retry logic.
+
+        Args:
+            batch_ids: List of message IDs to fetch
+            message_format: Message format (full/metadata/minimal)
+            max_retries: Maximum retry attempts
+
+        Returns:
+            Tuple of (results, rate_limit_hit, retry_after_seconds)
+        """
+        state = _BatchState(batch_results=[], failed_messages=[])
+
+        for retry in range(max_retries):
+            # Create batch request
+            batch = self.service.new_batch_http_request()
+
+            # Determine which messages to request
+            if retry == 0:
+                requests_to_add = list(enumerate(batch_ids))
+            else:
+                requests_to_add = state.failed_messages
+                if requests_to_add:
+                    logger.info(
+                        f"Retrying {len(state.failed_messages)} failed messages "
+                        f"(attempt {retry + 1}/{max_retries})"
+                    )
+
+            state.failed_messages = []  # Reset for this retry
+
+            # Add requests to batch
+            for idx, msg_id in requests_to_add:
+                batch.add(
+                    self.service.users().messages().get(
+                        userId='me',
+                        id=msg_id,
+                        format=message_format
+                    ),
+                    callback=self._create_batch_callback(idx, msg_id, state)
+                )
+
+            # Execute batch
+            try:
+                batch.execute()
+            except Exception as e:
+                logger.warning(f"Batch execution failed: {e}")
+                if retry < max_retries - 1:
+                    time.sleep(2.0 * (retry + 1))
+                    continue
+
+            # If no failures, we're done
+            if not state.failed_messages:
+                break
+
+            # Wait before retrying failed messages
+            if retry < max_retries - 1 and state.failed_messages:
+                wait_time = 2.0 * (2 ** retry)  # Exponential backoff
+                logger.info(f"Waiting {wait_time:.1f}s before retry...")
+                time.sleep(wait_time)
+
+        return state.batch_results, state.rate_limit_hit, state.retry_after_seconds
+
+    def _parse_batch_results(self, batch_results: List[Tuple[int, Any]]) -> List[Email]:
+        """
+        Parse batch results into Email objects.
+
+        Args:
+            batch_results: List of (index, response) tuples
+
+        Returns:
+            List of parsed Email objects
+        """
+        emails = []
+        batch_results.sort(key=lambda x: x[0])  # Sort by original index
+
+        for _, response in batch_results:
+            try:
+                email = Email.from_gmail_message(response)
+                emails.append(email)
+            except Exception as e:
+                logger.warning(f"Failed to parse email: {e}")
+
+        return emails
+
     def get_messages_batch(
         self,
         message_ids: List[str],
@@ -300,7 +462,7 @@ class GmailClient:
         current_batch_size = min(current_batch_size, 100)  # Gmail API batch limit
 
         emails = []
-        total_batches = (len(message_ids) + current_batch_size - 1) // current_batch_size
+        total_batches = math.ceil(len(message_ids) / current_batch_size)
 
         # Process in batches
         i = 0
@@ -321,117 +483,25 @@ class GmailClient:
                 if wait_time > 0:
                     logger.info(f"Waited {wait_time:.2f}s for quota availability")
 
-            # Retry logic for failed messages
-            max_retries = 3
-            retry_after_seconds = None
+            # Execute batch with retry logic
+            batch_results, rate_limit_hit, retry_after_seconds = self._execute_batch_with_retry(
+                batch_ids, message_format
+            )
 
-            for retry in range(max_retries):
-                # Create batch request
-                batch = self.service.new_batch_http_request()
-
-                # Store results and failures
-                batch_results = []
-                failed_messages = []
-                rate_limit_hit = False
-
-                def create_callback(index, msg_id):
-                    """Create callback for batch request."""
-                    nonlocal rate_limit_hit, retry_after_seconds
-
-                    def callback(request_id, response, exception):
-                        if exception:
-                            # Log detailed error information
-                            status_code = getattr(getattr(exception, 'resp', None), 'status', 'unknown')
-                            error_msg = str(exception)
-
-                            # Check if it's a rate limit error
-                            if hasattr(exception, 'resp') and exception.resp.status == 429:
-                                rate_limit_hit = True
-
-                                # Parse Retry-After header
-                                if hasattr(exception.resp, 'get'):
-                                    retry_after = exception.resp.get('Retry-After')
-                                    if retry_after:
-                                        try:
-                                            retry_after_seconds = int(retry_after)
-                                        except (ValueError, TypeError):
-                                            pass
-
-                                logger.debug(f"Rate limit (429) for message {msg_id[:10]}...")
-                                failed_messages.append((index, msg_id))
-                            else:
-                                # Log non-rate-limit errors with full details
-                                logger.error(
-                                    f"Failed to fetch message {msg_id[:10]}... - "
-                                    f"Status: {status_code}, Error: {error_msg[:200]}"
-                                )
-                                # Still add to failed list for retry
-                                failed_messages.append((index, msg_id))
-                        else:
-                            batch_results.append((index, response))
-                    return callback
-
-                # Add requests to batch (only retry failed ones after first attempt)
-                if retry == 0:
-                    requests_to_add = list(enumerate(batch_ids))
-                else:
-                    requests_to_add = failed_messages
-                    if requests_to_add:
-                        logger.info(
-                            f"Retrying {len(failed_messages)} failed messages "
-                            f"(attempt {retry + 1}/{max_retries})"
-                        )
-
-                failed_messages = []  # Reset for this retry
-
-                for idx, msg_id in requests_to_add:
-                    batch.add(
-                        self.service.users().messages().get(
-                            userId='me',
-                            id=msg_id,
-                            format=message_format
-                        ),
-                        callback=create_callback(idx, msg_id)
-                    )
-
-                # Execute batch
-                try:
-                    batch.execute()
-                except Exception as e:
-                    logger.warning(f"Batch execution failed: {e}")
-                    if retry < max_retries - 1:
-                        time.sleep(2.0 * (retry + 1))
-                        continue
-
-                # If rate limit hit, handle it
-                if rate_limit_hit and self.rate_limiter:
-                    new_batch_size = self.rate_limiter.on_rate_limit(retry_after_seconds)
-                    if new_batch_size:
-                        current_batch_size = new_batch_size
-                        logger.info(f"Adjusted batch size to {current_batch_size}")
-
-                # If no failures, we're done with this batch
-                if not failed_messages:
-                    break
-
-                # Wait before retrying failed messages
-                if retry < max_retries - 1 and failed_messages:
-                    wait_time = 2.0 * (2 ** retry)  # Exponential backoff
-                    logger.info(f"Waiting {wait_time:.1f}s before retry...")
-                    time.sleep(wait_time)
+            # Handle rate limit
+            if rate_limit_hit and self.rate_limiter:
+                new_batch_size = self.rate_limiter.on_rate_limit(retry_after_seconds)
+                if new_batch_size:
+                    current_batch_size = new_batch_size
+                    logger.info(f"Adjusted batch size to {current_batch_size}")
 
             # Consume quota for successful requests
             if self.rate_limiter:
                 self.rate_limiter.consume_batch(len(batch_results), cost_per_message)
 
-            # Parse results in original order
-            batch_results.sort(key=lambda x: x[0])
-            for _, response in batch_results:
-                try:
-                    email = Email.from_gmail_message(response)
-                    emails.append(email)
-                except Exception as e:
-                    logger.warning(f"Failed to parse email: {e}")
+            # Parse results into Email objects
+            batch_emails = self._parse_batch_results(batch_results)
+            emails.extend(batch_emails)
 
             success_count = len(batch_results)
             total_requested = len(batch_ids)
@@ -452,7 +522,7 @@ class GmailClient:
             # Move to next batch
             i += current_batch_size
             # Recalculate total batches with new batch size
-            total_batches = batch_num + ((len(message_ids) - i) + current_batch_size - 1) // current_batch_size
+            total_batches = batch_num + math.ceil((len(message_ids) - i) / current_batch_size)
 
         success_rate = (len(emails) / len(message_ids) * 100) if message_ids else 0
         logger.info(

@@ -52,7 +52,7 @@ class EmailCollector:
         self,
         months: int = 6,
         max_emails: Optional[int] = None,
-        batch_size: int = 50
+        batch_size: int = 100
     ) -> int:
         """
         Export historical emails from Gmail to database.
@@ -60,7 +60,9 @@ class EmailCollector:
         Args:
             months: Number of months to go back
             max_emails: Maximum number of emails to export (None for unlimited)
-            batch_size: Number of emails to fetch per batch (default: 50, lower to avoid rate limits)
+            batch_size: Number of message IDs to process per outer loop iteration.
+                       The Gmail client will further batch these internally with
+                       rate-aware adaptive sizing (typically 10-50 at a time).
 
         Returns:
             Number of emails exported
@@ -101,9 +103,9 @@ class EmailCollector:
 
             try:
                 # Fetch emails from Gmail (with smart quota-aware rate limiting)
+                # Note: Don't pass batch_size - let the rate limiter handle internal batching
                 gmail_emails = self.client.get_messages_batch(
                     batch_ids,
-                    batch_size=batch_size,
                     message_format='full'
                 )
 

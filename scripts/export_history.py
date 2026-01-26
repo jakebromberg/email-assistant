@@ -44,7 +44,7 @@ def main():
         '--batch-size',
         type=int,
         default=100,
-        help='Number of emails to fetch per batch (default: 100)'
+        help='Number of message IDs to process per iteration. The client will internally batch these with rate-aware sizing (default: 100)'
     )
     parser.add_argument(
         '--db-path',
