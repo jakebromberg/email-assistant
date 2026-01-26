@@ -5,7 +5,7 @@ from typing import Optional, List
 import json
 
 from sqlalchemy import (
-    Column, String, DateTime, Boolean, Integer, Text, ForeignKey, JSON
+    Column, String, DateTime, Boolean, Integer, Float, Text, ForeignKey, JSON
 )
 from sqlalchemy.orm import declarative_base, relationship
 
