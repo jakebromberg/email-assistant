@@ -2,8 +2,14 @@
 """
 Interactive CLI tool to review and provide feedback on bot decisions.
 
-Presents bot decisions to user for y/n/c/s feedback with natural language
-comments support.
+Presents bot decisions to user for single-key feedback.
+
+Keyboard shortcuts:
+    y - Mark decision as correct
+    n - Mark decision as incorrect (prompts for details)
+    s - Skip this email
+    c - Add a comment
+    q - Quit review
 
 Usage:
     python scripts/review_decisions.py
@@ -12,6 +18,8 @@ Usage:
 """
 
 import sys
+import tty
+import termios
 import argparse
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -72,6 +80,18 @@ def format_action(action_type):
     elif action_type.lower() == 'keep':
         return colored(action_type, Colors.GREEN)
     return action_type
+
+
+def getch():
+    """Get a single character from user without requiring Enter."""
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
 
 
 def main():
@@ -183,7 +203,9 @@ def main():
 
             # Get feedback
             while True:
-                response = input(colored("Decision correct? ", Colors.BOLD) + "(y/n/s/c for comment/q to quit): ").lower().strip()
+                print(colored("Decision correct? ", Colors.BOLD) + "(y/n/s/c/q): ", end='', flush=True)
+                response = getch().lower()
+                print(response)  # Echo the character
 
                 if response == 'q':
                     print(colored("\nReview ended by user", Colors.YELLOW))
