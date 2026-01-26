@@ -90,7 +90,7 @@ def main():
         logger.error(f"Failed to load model: {e}")
         sys.exit(1)
 
-    # Get sample emails with features
+    # Get sample emails with features and score them
     logger.info(f"Fetching {args.limit} sample emails...")
     with db.get_session() as session:
         store = FeatureStore(session)
@@ -113,78 +113,78 @@ def main():
             if e is not None
         ]
 
-    if not emails_features:
-        logger.error("No emails found")
-        sys.exit(1)
+        if not emails_features:
+            logger.error("No emails found")
+            sys.exit(1)
 
-    logger.info(f"Testing on {len(emails_features)} emails\n")
+        logger.info(f"Testing on {len(emails_features)} emails\n")
 
-    # Score and display results
-    logger.info("=" * 80)
-    for i, (email, features) in enumerate(emails_features, 1):
-        # Score email
-        score = scorer.score_email(email, features)
-
-        # Get decision
-        decision = scorer.make_decision(score)
-
-        # Categorize
-        category = categorizer.categorize(email, features.is_newsletter)
-
-        # Display
-        logger.info(f"\nEmail {i}/{len(emails_features)}")
-        logger.info(f"From: {email.from_name or email.from_address}")
-        logger.info(f"Subject: {email.subject[:60]}...")
-        logger.info(f"Date: {email.date.strftime('%Y-%m-%d %H:%M')}")
-        logger.info(f"Was read: {'Yes' if email.was_read else 'No'}")
-        logger.info(f"Was archived: {'Yes' if email.was_archived else 'No'}")
-        logger.info("")
-        logger.info(f"Model prediction:")
-        logger.info(f"  - Score: {score:.3f}")
-        logger.info(f"  - Decision: {decision['action']} ({decision['confidence']} confidence)")
-        logger.info(f"  - Category: {category}")
-        logger.info(f"  - Reasoning: {decision['reasoning']}")
-
-        # Check if prediction matches reality
-        if email.was_read and score >= 0.5:
-            logger.info(f"  ✓ Correct: Predicted would read, actually read")
-        elif not email.was_read and score < 0.5:
-            logger.info(f"  ✓ Correct: Predicted wouldn't read, actually didn't read")
-        elif email.was_read and score < 0.5:
-            logger.info(f"  ✗ Incorrect: Predicted wouldn't read, but actually read")
-        else:
-            logger.info(f"  ✗ Incorrect: Predicted would read, but actually didn't")
-
+        # Score and display results (inside session to access attributes)
         logger.info("=" * 80)
+        for i, (email, features) in enumerate(emails_features, 1):
+            # Score email
+            score = scorer.score_email(email, features)
 
-    # Summary statistics
-    logger.info("\n=== Summary ===\n")
+            # Get decision
+            decision = scorer.make_decision(score)
 
-    scores = [scorer.score_email(e, f) for e, f in emails_features]
-    actual_read = [e.was_read for e, _ in emails_features]
+            # Categorize
+            category = categorizer.categorize(email, features.is_newsletter)
 
-    logger.info(f"Score distribution:")
-    logger.info(f"  - Mean: {sum(scores) / len(scores):.3f}")
-    logger.info(f"  - Min: {min(scores):.3f}")
-    logger.info(f"  - Max: {max(scores):.3f}")
-    logger.info("")
+            # Display
+            logger.info(f"\nEmail {i}/{len(emails_features)}")
+            logger.info(f"From: {email.from_name or email.from_address}")
+            logger.info(f"Subject: {email.subject[:60]}...")
+            logger.info(f"Date: {email.date.strftime('%Y-%m-%d %H:%M')}")
+            logger.info(f"Was read: {'Yes' if email.was_read else 'No'}")
+            logger.info(f"Was archived: {'Yes' if email.was_archived else 'No'}")
+            logger.info("")
+            logger.info(f"Model prediction:")
+            logger.info(f"  - Score: {score:.3f}")
+            logger.info(f"  - Decision: {decision['action']} ({decision['confidence']} confidence)")
+            logger.info(f"  - Category: {category}")
+            logger.info(f"  - Reasoning: {decision['reasoning']}")
 
-    logger.info(f"Decisions:")
-    high_keep = sum(1 for s in scores if s >= 0.7)
-    high_archive = sum(1 for s in scores if s <= 0.3)
-    low_conf = len(scores) - high_keep - high_archive
+            # Check if prediction matches reality
+            if email.was_read and score >= 0.5:
+                logger.info(f"  ✓ Correct: Predicted would read, actually read")
+            elif not email.was_read and score < 0.5:
+                logger.info(f"  ✓ Correct: Predicted wouldn't read, actually didn't read")
+            elif email.was_read and score < 0.5:
+                logger.info(f"  ✗ Incorrect: Predicted wouldn't read, but actually read")
+            else:
+                logger.info(f"  ✗ Incorrect: Predicted would read, but actually didn't")
 
-    logger.info(f"  - High confidence keep: {high_keep} ({high_keep / len(scores) * 100:.1f}%)")
-    logger.info(f"  - High confidence archive: {high_archive} ({high_archive / len(scores) * 100:.1f}%)")
-    logger.info(f"  - Low confidence: {low_conf} ({low_conf / len(scores) * 100:.1f}%)")
-    logger.info("")
+            logger.info("=" * 80)
 
-    # Accuracy on this sample
-    correct = sum(
-        1 for s, actual in zip(scores, actual_read)
-        if (s >= 0.5 and actual) or (s < 0.5 and not actual)
-    )
-    logger.info(f"Accuracy on sample: {correct}/{len(scores)} ({correct / len(scores) * 100:.1f}%)")
+        # Summary statistics (still inside session)
+        logger.info("\n=== Summary ===\n")
+
+        scores = [scorer.score_email(e, f) for e, f in emails_features]
+        actual_read = [e.was_read for e, _ in emails_features]
+
+        logger.info(f"Score distribution:")
+        logger.info(f"  - Mean: {sum(scores) / len(scores):.3f}")
+        logger.info(f"  - Min: {min(scores):.3f}")
+        logger.info(f"  - Max: {max(scores):.3f}")
+        logger.info("")
+
+        logger.info(f"Decisions:")
+        high_keep = sum(1 for s in scores if s >= 0.7)
+        high_archive = sum(1 for s in scores if s <= 0.3)
+        low_conf = len(scores) - high_keep - high_archive
+
+        logger.info(f"  - High confidence keep: {high_keep} ({high_keep / len(scores) * 100:.1f}%)")
+        logger.info(f"  - High confidence archive: {high_archive} ({high_archive / len(scores) * 100:.1f}%)")
+        logger.info(f"  - Low confidence: {low_conf} ({low_conf / len(scores) * 100:.1f}%)")
+        logger.info("")
+
+        # Accuracy on this sample
+        correct = sum(
+            1 for s, actual in zip(scores, actual_read)
+            if (s >= 0.5 and actual) or (s < 0.5 and not actual)
+        )
+        logger.info(f"Accuracy on sample: {correct}/{len(scores)} ({correct / len(scores) * 100:.1f}%)")
 
     logger.info("\nModel testing complete!")
 

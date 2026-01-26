@@ -178,11 +178,8 @@ class TriagePipeline:
             # Extract features
             features = self._extract_features(db_email, session)
 
-            # Save features
-            store.save_features(db_email.message_id, features)
-
-            # Get features object for scoring
-            email_features = store.get_features(db_email.message_id)
+            # Save features (returns EmailFeatures object)
+            email_features = store.save_features(db_email.message_id, features)
 
             # Score email
             score = self.scorer.score_email(db_email, email_features)

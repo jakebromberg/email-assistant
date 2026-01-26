@@ -97,7 +97,7 @@ def main():
 
     logger.info("")
 
-    # Get emails to process
+    # Get message IDs to process (not full Email objects)
     with db.get_session() as session:
         store = FeatureStore(session)
 
@@ -109,20 +109,17 @@ def main():
                 EmailFeatures.subject_embedding.is_(None)
             ).limit(args.limit if args.limit else 10000).all()
 
-            message_ids = [f.message_id for f in emails_with_features]
-            from src.database.repository import EmailRepository
-            repo = EmailRepository(session)
-            emails_to_process = repo.get_by_ids(message_ids)
-
-            logger.info(f"Found {len(emails_to_process)} emails needing embeddings\n")
+            message_ids_to_process = [f.message_id for f in emails_with_features]
+            logger.info(f"Found {len(message_ids_to_process)} emails needing embeddings\n")
 
         else:
-            # Get emails without features
+            # Get emails without features (just IDs)
             logger.info("Finding emails without features...")
-            emails_to_process = store.get_emails_without_features(limit=args.limit)
-            logger.info(f"Found {len(emails_to_process)} emails to process\n")
+            emails_without_features = store.get_emails_without_features(limit=args.limit)
+            message_ids_to_process = [email.message_id for email in emails_without_features]
+            logger.info(f"Found {len(message_ids_to_process)} emails to process\n")
 
-    if not emails_to_process:
+    if not message_ids_to_process:
         logger.info("No emails to process. All done!")
         sys.exit(0)
 
@@ -130,21 +127,26 @@ def main():
     total_processed = 0
     batch_size = args.batch_size
 
-    for i in range(0, len(emails_to_process), batch_size):
-        batch = emails_to_process[i:i + batch_size]
+    for i in range(0, len(message_ids_to_process), batch_size):
+        batch_message_ids = message_ids_to_process[i:i + batch_size]
         batch_num = (i // batch_size) + 1
-        total_batches = (len(emails_to_process) + batch_size - 1) // batch_size
+        total_batches = (len(message_ids_to_process) + batch_size - 1) // batch_size
 
-        logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} emails)...")
+        logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch_message_ids)} emails)...")
 
         try:
             with db.get_session() as session:
                 store = FeatureStore(session)
                 historical_extractor = HistoricalPatternExtractor(session)
 
+                # Re-fetch emails within this session
+                from src.database.repository import EmailRepository
+                repo = EmailRepository(session)
+                batch_emails = repo.get_by_ids(batch_message_ids)
+
                 features_list = []
 
-                for email in batch:
+                for email in batch_emails:
                     # Combine features from all extractors
                     features = {}
 
@@ -166,9 +168,9 @@ def main():
 
                 # Save all features
                 store.save_features_batch(features_list)
-                total_processed += len(batch)
+                total_processed += len(batch_emails)
 
-            logger.info(f"  ✓ Batch {batch_num} complete (total: {total_processed}/{len(emails_to_process)})\n")
+            logger.info(f"  ✓ Batch {batch_num} complete (total: {total_processed}/{len(message_ids_to_process)})\n")
 
         except KeyboardInterrupt:
             logger.warning("\nProcessing interrupted by user")

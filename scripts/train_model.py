@@ -80,13 +80,15 @@ def main():
         logger.error("No emails in database. Run scripts/export_history.py first")
         sys.exit(1)
 
-    # Initialize trainer
+    # Initialize trainer and prepare data
     logger.info("Initializing model trainer...")
-    with db.get_session() as session:
-        trainer = ModelTrainer(session)
+    trainer = None  # Initialize outside try block for later use
 
-        # Prepare data
-        try:
+    try:
+        with db.get_session() as session:
+            trainer = ModelTrainer(session)
+
+            # Prepare data
             logger.info("Preparing training data...")
             X, y = trainer.prepare_data(use_embeddings=not args.no_embeddings)
 
@@ -96,26 +98,23 @@ def main():
             logger.info(f"  - Positive rate: {y.mean():.1%}")
             logger.info("")
 
-        except ValueError as e:
-            logger.error(f"Failed to prepare data: {e}")
-            logger.error("Make sure you've run scripts/build_features.py first")
-            sys.exit(1)
+        # Train model (outside session - model is in-memory after training)
+        # trainer.feature_names is preserved from prepare_data()
+        logger.info("Training LightGBM model...")
+        logger.info(f"  - Test size: {args.test_size}")
+        logger.info(f"  - Using embeddings: {not args.no_embeddings}")
+        logger.info("")
 
-    # Train model
-    logger.info("Training LightGBM model...")
-    logger.info(f"  - Test size: {args.test_size}")
-    logger.info(f"  - Using embeddings: {not args.no_embeddings}")
-    logger.info("")
+        metrics = trainer.train(
+            X=X,
+            y=y,
+            test_size=args.test_size
+        )
 
-    try:
-        with db.get_session() as session:
-            trainer = ModelTrainer(session)
-            metrics = trainer.train(
-                X=X,
-                y=y,
-                test_size=args.test_size
-            )
-
+    except ValueError as e:
+        logger.error(f"Failed to prepare data: {e}")
+        logger.error("Make sure you've run scripts/build_features.py first")
+        sys.exit(1)
     except Exception as e:
         logger.error(f"Training failed: {e}")
         sys.exit(1)

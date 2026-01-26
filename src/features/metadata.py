@@ -141,7 +141,9 @@ class MetadataExtractor:
         """
         Detect if email is a newsletter.
 
-        Checks for common newsletter indicators in headers and content.
+        Checks for common newsletter indicators in content and labels.
+        Note: Database Email model doesn't store full headers, so we rely
+        on content analysis and label patterns.
 
         Args:
             email: Email database model
@@ -152,11 +154,11 @@ class MetadataExtractor:
         Example:
             >>> is_nl = extractor._is_newsletter(email)
         """
-        # Check headers (stored in labels for common ones)
-        headers_lower = {k.lower(): v.lower() for k, v in email.headers.items()}
-
-        for indicator in self.NEWSLETTER_HEADERS:
-            if indicator in headers_lower:
+        # Check labels for newsletter indicators
+        # Gmail sometimes adds labels for mailing lists
+        if email.labels:
+            labels_str = ' '.join(email.labels).lower()
+            if any(indicator.replace('-', '') in labels_str for indicator in ['listunsubscribe', 'listid', 'mailinglist']):
                 return True
 
         # Check subject and body for newsletter patterns
