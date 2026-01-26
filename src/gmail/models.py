@@ -160,7 +160,7 @@ class Email:
             date_str: Date header value
 
         Returns:
-            Parsed datetime object
+            Parsed datetime object (timezone-naive for database compatibility)
 
         Example:
             >>> Email._parse_date("Mon, 1 Jan 2024 12:00:00 +0000")
@@ -171,7 +171,10 @@ class Email:
 
         try:
             from email.utils import parsedate_to_datetime
-            return parsedate_to_datetime(date_str)
+            dt = parsedate_to_datetime(date_str)
+            # Strip timezone info for database compatibility
+            # All datetimes in database are timezone-naive (implicitly UTC)
+            return dt.replace(tzinfo=None)
         except Exception:
             # Fallback to current time if parsing fails
             return datetime.now()
@@ -191,9 +194,6 @@ class Email:
             >>> payload = message['payload']
             >>> plain, html = Email._extract_body(payload)
         """
-        body_plain = ''
-        body_html = ''
-
         def decode_body(data: str) -> str:
             """Decode base64url encoded body."""
             if not data:
@@ -203,27 +203,41 @@ class Email:
             except Exception:
                 return ''
 
-        def extract_parts(part: Dict[str, Any]) -> None:
-            """Recursively extract body parts."""
-            nonlocal body_plain, body_html
+        def extract_parts(part: Dict[str, Any]) -> tuple[str, str]:
+            """
+            Recursively extract body parts.
+
+            Returns:
+                Tuple of (plain_text, html) from this part and its children
+            """
+            body_plain = ''
+            body_html = ''
 
             mime_type = part.get('mimeType', '')
             body = part.get('body', {})
             data = body.get('data', '')
 
+            # Extract from this part
             if mime_type == 'text/plain' and data and not body_plain:
                 body_plain = decode_body(data)
             elif mime_type == 'text/html' and data and not body_html:
                 body_html = decode_body(data)
 
-            # Recurse into parts
+            # Recurse into child parts (only if we haven't found what we need)
             for subpart in part.get('parts', []):
-                extract_parts(subpart)
+                sub_plain, sub_html = extract_parts(subpart)
+                if not body_plain:
+                    body_plain = sub_plain
+                if not body_html:
+                    body_html = sub_html
+                # Early exit if we've found both
+                if body_plain and body_html:
+                    break
+
+            return body_plain, body_html
 
         # Start extraction
-        extract_parts(payload)
-
-        return body_plain, body_html
+        return extract_parts(payload)
 
     @property
     def is_unread(self) -> bool:

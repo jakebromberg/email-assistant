@@ -64,6 +64,39 @@ class GmailOperations:
         self.client = client
         self._label_cache: Optional[Dict[str, str]] = None
 
+    def _handle_dry_run(
+        self,
+        dry_run: bool,
+        action_description: str,
+        message_ids: List[str]
+    ) -> Optional[OperationResult]:
+        """
+        Handle dry-run mode for operations.
+
+        Args:
+            dry_run: Whether in dry-run mode
+            action_description: Description of action (e.g., "mark as read")
+            message_ids: List of message IDs
+
+        Returns:
+            OperationResult if dry-run, None if should proceed with actual operation
+
+        Example:
+            >>> result = self._handle_dry_run(True, "archive", ['msg1'])
+            >>> if result:
+            ...     return result
+        """
+        if not dry_run:
+            return None
+
+        message = f"DRY RUN: Would {action_description} {len(message_ids)} messages"
+        logger.info(message)
+        return OperationResult(
+            success=True,
+            message_ids=message_ids,
+            message=message
+        )
+
     def mark_read(
         self,
         message_ids: List[str],
@@ -83,13 +116,9 @@ class GmailOperations:
             >>> result = ops.mark_read(['msg1', 'msg2'])
             >>> print(f"Marked {len(result.message_ids)} as read")
         """
-        if dry_run:
-            logger.info(f"DRY RUN: Would mark {len(message_ids)} messages as read")
-            return OperationResult(
-                success=True,
-                message_ids=message_ids,
-                message=f"DRY RUN: Would mark {len(message_ids)} messages as read"
-            )
+        result = self._handle_dry_run(dry_run, "mark as read", message_ids)
+        if result:
+            return result
 
         return self.batch_modify(
             message_ids=message_ids,
@@ -115,13 +144,9 @@ class GmailOperations:
             >>> result = ops.mark_unread(['msg1', 'msg2'])
             >>> print(f"Marked {len(result.message_ids)} as unread")
         """
-        if dry_run:
-            logger.info(f"DRY RUN: Would mark {len(message_ids)} messages as unread")
-            return OperationResult(
-                success=True,
-                message_ids=message_ids,
-                message=f"DRY RUN: Would mark {len(message_ids)} messages as unread"
-            )
+        result = self._handle_dry_run(dry_run, "mark as unread", message_ids)
+        if result:
+            return result
 
         return self.batch_modify(
             message_ids=message_ids,
@@ -147,13 +172,9 @@ class GmailOperations:
             >>> result = ops.archive(['msg1', 'msg2'])
             >>> print(f"Archived {len(result.message_ids)} messages")
         """
-        if dry_run:
-            logger.info(f"DRY RUN: Would archive {len(message_ids)} messages")
-            return OperationResult(
-                success=True,
-                message_ids=message_ids,
-                message=f"DRY RUN: Would archive {len(message_ids)} messages"
-            )
+        result = self._handle_dry_run(dry_run, "archive", message_ids)
+        if result:
+            return result
 
         return self.batch_modify(
             message_ids=message_ids,
@@ -179,13 +200,9 @@ class GmailOperations:
             >>> result = ops.move_to_inbox(['msg1', 'msg2'])
             >>> print(f"Moved {len(result.message_ids)} to inbox")
         """
-        if dry_run:
-            logger.info(f"DRY RUN: Would move {len(message_ids)} messages to inbox")
-            return OperationResult(
-                success=True,
-                message_ids=message_ids,
-                message=f"DRY RUN: Would move {len(message_ids)} messages to inbox"
-            )
+        result = self._handle_dry_run(dry_run, "move to inbox", message_ids)
+        if result:
+            return result
 
         return self.batch_modify(
             message_ids=message_ids,
@@ -215,16 +232,9 @@ class GmailOperations:
             ...     ['Bot/Newsletter-Tech', 'Bot/AutoArchived']
             ... )
         """
-        if dry_run:
-            logger.info(
-                f"DRY RUN: Would add labels {label_names} "
-                f"to {len(message_ids)} messages"
-            )
-            return OperationResult(
-                success=True,
-                message_ids=message_ids,
-                message=f"DRY RUN: Would add labels to {len(message_ids)} messages"
-            )
+        result = self._handle_dry_run(dry_run, "add labels", message_ids)
+        if result:
+            return result
 
         # Get or create label IDs
         label_ids = []
@@ -260,16 +270,9 @@ class GmailOperations:
             ...     ['Bot/LowConfidence']
             ... )
         """
-        if dry_run:
-            logger.info(
-                f"DRY RUN: Would remove labels {label_names} "
-                f"from {len(message_ids)} messages"
-            )
-            return OperationResult(
-                success=True,
-                message_ids=message_ids,
-                message=f"DRY RUN: Would remove labels from {len(message_ids)} messages"
-            )
+        result = self._handle_dry_run(dry_run, "remove labels", message_ids)
+        if result:
+            return result
 
         # Get label IDs (skip if label doesn't exist)
         label_ids = []

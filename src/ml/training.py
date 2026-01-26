@@ -73,6 +73,92 @@ class ModelTrainer:
         self.model: Optional[lgb.Booster] = None
         self.feature_names: List[str] = []
 
+    def _extract_metadata_row(self, features: EmailFeatures) -> Dict[str, Any]:
+        """
+        Extract metadata features into row dictionary.
+
+        Args:
+            features: EmailFeatures object
+
+        Returns:
+            Dictionary with metadata feature values
+
+        Example:
+            >>> row = trainer._extract_metadata_row(features)
+            >>> print(row['is_newsletter'])
+        """
+        row = {}
+        for feat in self.METADATA_FEATURES:
+            value = getattr(features, feat, None)
+            row[feat] = value if value is not None else 0
+        return row
+
+    def _extract_historical_row(self, features: EmailFeatures) -> Dict[str, Any]:
+        """
+        Extract historical pattern features into row dictionary.
+
+        Args:
+            features: EmailFeatures object
+
+        Returns:
+            Dictionary with historical feature values
+
+        Example:
+            >>> row = trainer._extract_historical_row(features)
+            >>> print(row['sender_open_rate'])
+        """
+        row = {}
+        for feat in self.HISTORICAL_FEATURES:
+            value = getattr(features, feat, None)
+            # Special case: sender_days_since_last should default to 999, not 0
+            if feat == 'sender_days_since_last' and value is None:
+                value = 999  # Large value for no previous email
+            else:
+                value = value if value is not None else 0
+            row[feat] = value
+        return row
+
+    def _extract_embedding_row(
+        self,
+        subject_emb: Optional[List[float]],
+        body_emb: Optional[List[float]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Extract embedding features into row dictionary.
+
+        Returns None if no embeddings available (email should be skipped).
+
+        Args:
+            subject_emb: Subject embedding vector
+            body_emb: Body embedding vector
+
+        Returns:
+            Dictionary with embedding features, or None if no embeddings
+
+        Example:
+            >>> row = trainer._extract_embedding_row(subject_emb, body_emb)
+            >>> if row is None:
+            ...     continue  # Skip this email
+        """
+        if not subject_emb and not body_emb:
+            return None
+
+        row = {}
+
+        if subject_emb and body_emb:
+            # Average the embeddings
+            avg_emb = [(s + b) / 2 for s, b in zip(subject_emb, body_emb)]
+            for i, val in enumerate(avg_emb):
+                row[f'emb_{i}'] = val
+        elif subject_emb:
+            for i, val in enumerate(subject_emb):
+                row[f'emb_{i}'] = val
+        elif body_emb:
+            for i, val in enumerate(body_emb):
+                row[f'emb_{i}'] = val
+
+        return row
+
     def prepare_data(
         self,
         use_embeddings: bool = True,
@@ -116,46 +202,23 @@ class ModelTrainer:
         for email, features in results:
             row = {}
 
-            # Metadata features
-            for feat in self.METADATA_FEATURES:
-                value = getattr(features, feat, None)
-                if value is None:
-                    value = 0
-                row[feat] = value
+            # Extract metadata features
+            row.update(self._extract_metadata_row(features))
 
-            # Historical features
-            for feat in self.HISTORICAL_FEATURES:
-                value = getattr(features, feat, None)
-                if value is None:
-                    value = 0
-                # Handle None for sender_days_since_last
-                if feat == 'sender_days_since_last' and value is None:
-                    value = 999  # Large value for no previous email
-                row[feat] = value
+            # Extract historical features
+            row.update(self._extract_historical_row(features))
 
-            # Embedding features (average of subject and body)
+            # Extract embedding features (optional)
             if use_embeddings:
-                subject_emb = features.subject_embedding
-                body_emb = features.body_embedding
-
-                if subject_emb and body_emb:
-                    # Average the embeddings
-                    avg_emb = [(s + b) / 2 for s, b in zip(subject_emb, body_emb)]
-                    for i, val in enumerate(avg_emb):
-                        row[f'emb_{i}'] = val
-                elif subject_emb:
-                    for i, val in enumerate(subject_emb):
-                        row[f'emb_{i}'] = val
-                elif body_emb:
-                    for i, val in enumerate(body_emb):
-                        row[f'emb_{i}'] = val
-                else:
-                    # No embeddings, skip this email
-                    continue
+                embedding_row = self._extract_embedding_row(
+                    features.subject_embedding,
+                    features.body_embedding
+                )
+                if embedding_row is None:
+                    continue  # Skip email with no embeddings
+                row.update(embedding_row)
 
             data.append(row)
-
-            # Target: was the email read?
             targets.append(1 if email.was_read else 0)
 
         if not data:
@@ -199,6 +262,10 @@ class ModelTrainer:
         # Prepare data if not provided
         if X is None or y is None:
             X, y = self.prepare_data()
+
+        # Ensure feature_names is set (in case X/y were provided directly)
+        if not self.feature_names and X is not None:
+            self.feature_names = list(X.columns)
 
         # Train/test split
         X_train, X_test, y_train, y_test = train_test_split(

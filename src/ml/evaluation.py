@@ -200,28 +200,34 @@ class ModelEvaluator:
             ... )
             >>> print(f"Archive precision: {metrics['archive_precision']:.3f}")
         """
+        y_true_array = np.array(y_true)
+        y_pred_array = np.array(y_pred_proba)
+
         # Emails below threshold would be archived
-        archive_predictions = np.array(y_pred_proba) < archive_threshold
+        archive_predictions = y_pred_array < archive_threshold
+        n_archived = archive_predictions.sum()
 
-        # Among archived emails, how many were actually unread (correct)?
-        if archive_predictions.sum() > 0:
-            archive_precision = (
-                (archive_predictions & (np.array(y_true) == 0)).sum() /
-                archive_predictions.sum()
-            )
+        # Calculate metrics
+        if n_archived > 0:
+            # Correct archives: predicted archive AND actually unread
+            correct_archives = (archive_predictions & (y_true_array == 0)).sum()
+            archive_precision = correct_archives / n_archived
+
+            # False positives: predicted archive BUT should have been read
+            false_positives = (archive_predictions & (y_true_array == 1)).sum()
+            false_positive_rate = false_positives / n_archived
         else:
+            # No archives predicted
             archive_precision = 0.0
-
-        # False positives: archived but should have been read
-        false_positives = (archive_predictions & (np.array(y_true) == 1)).sum()
+            false_positives = 0
+            false_positive_rate = 0.0
 
         metrics = {
             'archive_threshold': archive_threshold,
             'archive_precision': archive_precision,
-            'n_archived': int(archive_predictions.sum()),
+            'n_archived': int(n_archived),
             'n_false_positives': int(false_positives),
-            'false_positive_rate': false_positives / archive_predictions.sum()
-                                  if archive_predictions.sum() > 0 else 0,
+            'false_positive_rate': false_positive_rate,
         }
 
         logger.info(f"Archive metrics (threshold={archive_threshold}):")
@@ -249,8 +255,23 @@ class ModelEvaluator:
         output_path_obj = Path(output_path)
         output_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
+        # Convert numpy/pandas types to native Python types for JSON serialization
+        def convert_types(obj):
+            if isinstance(obj, dict):
+                return {k: convert_types(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_types(item) for item in obj]
+            elif isinstance(obj, (np.integer, np.floating)):
+                return obj.item()
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            else:
+                return obj
+
+        metrics_converted = convert_types(metrics)
+
         with open(output_path_obj, 'w') as f:
-            json.dump(metrics, f, indent=2)
+            json.dump(metrics_converted, f, indent=2)
 
         logger.info(f"Metrics saved to {output_path}")
 
