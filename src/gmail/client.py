@@ -2,13 +2,14 @@
 
 import time
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from .auth import GmailAuthenticator
 from .models import Email
+from .rate_limiter import RateLimiter, QuotaCosts
 from ..utils import get_logger
 
 
@@ -33,12 +34,19 @@ class GmailClient:
         >>> emails = client.get_messages_batch(message_ids)
     """
 
-    def __init__(self, authenticator: GmailAuthenticator):
+    def __init__(
+        self,
+        authenticator: GmailAuthenticator,
+        enable_rate_limiting: bool = True,
+        enable_adaptive_sizing: bool = True
+    ):
         """
         Initialize Gmail API client.
 
         Args:
             authenticator: GmailAuthenticator instance for OAuth
+            enable_rate_limiting: Enable smart quota-aware rate limiting
+            enable_adaptive_sizing: Enable adaptive batch sizing
 
         Example:
             >>> auth = GmailAuthenticator("credentials/credentials.json", "credentials/token.json")
@@ -47,6 +55,16 @@ class GmailClient:
         self.authenticator = authenticator
         self.service = None
         self._build_service()
+
+        # Initialize smart rate limiter
+        self.rate_limiter = None
+        if enable_rate_limiting:
+            self.rate_limiter = RateLimiter(
+                quota_per_second=250,
+                initial_batch_size=50,
+                enable_adaptive_sizing=enable_adaptive_sizing
+            )
+            logger.info("Smart rate limiting enabled")
 
     def _build_service(self) -> None:
         """
@@ -243,14 +261,16 @@ class GmailClient:
     def get_messages_batch(
         self,
         message_ids: List[str],
-        batch_size: int = 100
+        batch_size: Optional[int] = None,
+        message_format: Literal['full', 'metadata', 'minimal'] = 'full'
     ) -> List[Email]:
         """
-        Fetch multiple messages efficiently using batch requests.
+        Fetch multiple messages efficiently using batch requests with smart rate limiting.
 
         Args:
             message_ids: List of message IDs to fetch
-            batch_size: Number of messages per batch (max 100)
+            batch_size: Number of messages per batch (None = use adaptive sizing)
+            message_format: Message format - 'full' (5 quota), 'metadata' (2 quota), 'minimal' (1 quota)
 
         Returns:
             List of Email objects
@@ -263,47 +283,136 @@ class GmailClient:
         if not message_ids:
             return []
 
+        # Determine quota cost per message based on format
+        quota_cost_map = {
+            'full': QuotaCosts.MESSAGE_GET_FULL,
+            'metadata': QuotaCosts.MESSAGE_GET_METADATA,
+            'minimal': QuotaCosts.MESSAGE_GET_MINIMAL
+        }
+        cost_per_message = quota_cost_map[message_format]
+
+        # Use adaptive batch size or specified size
+        if batch_size is None and self.rate_limiter:
+            current_batch_size = self.rate_limiter.get_recommended_batch_size()
+        else:
+            current_batch_size = batch_size or 50
+
+        current_batch_size = min(current_batch_size, 100)  # Gmail API batch limit
+
         emails = []
-        batch_size = min(batch_size, 100)  # Gmail API batch limit
+        total_batches = (len(message_ids) + current_batch_size - 1) // current_batch_size
 
         # Process in batches
-        for i in range(0, len(message_ids), batch_size):
-            batch_ids = message_ids[i:i + batch_size]
-            logger.debug(
-                f"Fetching batch {i // batch_size + 1}: "
-                f"{len(batch_ids)} messages"
+        i = 0
+        batch_num = 0
+
+        while i < len(message_ids):
+            batch_num += 1
+            batch_ids = message_ids[i:i + current_batch_size]
+
+            logger.info(
+                f"Processing batch {batch_num}/{total_batches}: "
+                f"{len(batch_ids)} messages (format={message_format}, cost={cost_per_message * len(batch_ids)} quota)"
             )
 
-            # Create batch request
-            batch = self.service.new_batch_http_request()
+            # Wait for quota availability
+            if self.rate_limiter:
+                wait_time = self.rate_limiter.wait_for_batch(len(batch_ids), cost_per_message)
+                if wait_time > 0:
+                    logger.info(f"Waited {wait_time:.2f}s for quota availability")
 
-            # Store results
-            batch_results = []
+            # Retry logic for failed messages
+            max_retries = 3
+            retry_after_seconds = None
 
-            def create_callback(index):
-                """Create callback for batch request."""
-                def callback(request_id, response, exception):
-                    if exception:
-                        logger.warning(
-                            f"Failed to fetch message in batch: {exception}"
+            for retry in range(max_retries):
+                # Create batch request
+                batch = self.service.new_batch_http_request()
+
+                # Store results and failures
+                batch_results = []
+                failed_messages = []
+                rate_limit_hit = False
+
+                def create_callback(index, msg_id):
+                    """Create callback for batch request."""
+                    nonlocal rate_limit_hit, retry_after_seconds
+
+                    def callback(request_id, response, exception):
+                        if exception:
+                            # Check if it's a rate limit error
+                            if hasattr(exception, 'resp') and exception.resp.status == 429:
+                                rate_limit_hit = True
+
+                                # Parse Retry-After header
+                                if hasattr(exception.resp, 'get'):
+                                    retry_after = exception.resp.get('Retry-After')
+                                    if retry_after:
+                                        try:
+                                            retry_after_seconds = int(retry_after)
+                                        except (ValueError, TypeError):
+                                            pass
+
+                                logger.debug(f"Rate limit hit for message {msg_id[:10]}...")
+                                failed_messages.append((index, msg_id))
+                            else:
+                                logger.warning(f"Failed to fetch message: {exception}")
+                        else:
+                            batch_results.append((index, response))
+                    return callback
+
+                # Add requests to batch (only retry failed ones after first attempt)
+                if retry == 0:
+                    requests_to_add = list(enumerate(batch_ids))
+                else:
+                    requests_to_add = failed_messages
+                    if requests_to_add:
+                        logger.info(
+                            f"Retrying {len(failed_messages)} failed messages "
+                            f"(attempt {retry + 1}/{max_retries})"
                         )
-                    else:
-                        batch_results.append((index, response))
-                return callback
 
-            # Add requests to batch
-            for idx, msg_id in enumerate(batch_ids):
-                batch.add(
-                    self.service.users().messages().get(
-                        userId='me',
-                        id=msg_id,
-                        format='full'
-                    ),
-                    callback=create_callback(idx)
-                )
+                failed_messages = []  # Reset for this retry
 
-            # Execute batch with retry
-            self._execute_with_retry(batch)
+                for idx, msg_id in requests_to_add:
+                    batch.add(
+                        self.service.users().messages().get(
+                            userId='me',
+                            id=msg_id,
+                            format=message_format
+                        ),
+                        callback=create_callback(idx, msg_id)
+                    )
+
+                # Execute batch
+                try:
+                    batch.execute()
+                except Exception as e:
+                    logger.warning(f"Batch execution failed: {e}")
+                    if retry < max_retries - 1:
+                        time.sleep(2.0 * (retry + 1))
+                        continue
+
+                # If rate limit hit, handle it
+                if rate_limit_hit and self.rate_limiter:
+                    new_batch_size = self.rate_limiter.on_rate_limit(retry_after_seconds)
+                    if new_batch_size:
+                        current_batch_size = new_batch_size
+                        logger.info(f"Adjusted batch size to {current_batch_size}")
+
+                # If no failures, we're done with this batch
+                if not failed_messages:
+                    break
+
+                # Wait before retrying failed messages
+                if retry < max_retries - 1 and failed_messages:
+                    wait_time = 2.0 * (2 ** retry)  # Exponential backoff
+                    logger.info(f"Waiting {wait_time:.1f}s before retry...")
+                    time.sleep(wait_time)
+
+            # Consume quota for successful requests
+            if self.rate_limiter:
+                self.rate_limiter.consume_batch(len(batch_results), cost_per_message)
 
             # Parse results in original order
             batch_results.sort(key=lambda x: x[0])
@@ -314,9 +423,37 @@ class GmailClient:
                 except Exception as e:
                     logger.warning(f"Failed to parse email: {e}")
 
-            logger.info(f"Fetched batch: {len(batch_results)} emails")
+            success_count = len(batch_results)
+            total_requested = len(batch_ids)
 
-        logger.info(f"Fetched total of {len(emails)} emails")
+            # Record success/failure for adaptive sizing
+            if self.rate_limiter and success_count == total_requested:
+                new_batch_size = self.rate_limiter.on_batch_success()
+                if new_batch_size and new_batch_size != current_batch_size:
+                    current_batch_size = min(new_batch_size, 100)
+                    logger.info(f"Increased batch size to {current_batch_size}")
+
+            logger.info(
+                f"Batch {batch_num}/{total_batches} complete: "
+                f"{success_count}/{total_requested} emails fetched "
+                f"(total: {len(emails)}/{min(i + current_batch_size, len(message_ids))})"
+            )
+
+            # Move to next batch
+            i += current_batch_size
+            # Recalculate total batches with new batch size
+            total_batches = batch_num + ((len(message_ids) - i) + current_batch_size - 1) // current_batch_size
+
+        success_rate = (len(emails) / len(message_ids) * 100) if message_ids else 0
+        logger.info(
+            f"Fetch complete: {len(emails)}/{len(message_ids)} emails "
+            f"({success_rate:.1f}% success rate)"
+        )
+
+        # Log rate limiter stats
+        if self.rate_limiter:
+            self.rate_limiter.log_stats()
+
         return emails
 
     def get_all_labels(self) -> List[Dict[str, str]]:

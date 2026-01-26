@@ -349,6 +349,63 @@ launchctl list | grep email
 tail -f logs/triage.log
 ```
 
+## Smart Rate Limiting
+
+The Gmail client includes intelligent quota management to avoid hitting API rate limits:
+
+### Quota-Aware Operation
+
+**Gmail API Limits:**
+- 250 quota units per user per second
+- `messages.get(format='full')` costs 5 quota units per message
+- `messages.get(format='metadata')` costs 2 quota units per message
+
+**Smart Features:**
+```python
+from src.gmail import GmailClient, QuotaCosts
+
+# Initialize with rate limiting enabled (default)
+client = GmailClient(auth, enable_rate_limiting=True, enable_adaptive_sizing=True)
+
+# Fetch with different formats to save quota
+emails = client.get_messages_batch(
+    message_ids,
+    message_format='full'      # 5 quota/msg (default)
+    # message_format='metadata'  # 2 quota/msg (faster, less data)
+    # message_format='minimal'   # 1 quota/msg (fastest, minimal data)
+)
+```
+
+### Adaptive Batch Sizing
+
+The rate limiter automatically adjusts batch size based on success/failure:
+- **Starts at**: 50 messages per batch
+- **Increases**: +5 messages after 5 consecutive successful batches (up to 50 max)
+- **Decreases**: ÷2 when rate limits hit (down to 10 min)
+
+### Token Bucket Algorithm
+
+Tracks quota usage in real-time:
+- Maintains available quota tokens (max 250)
+- Refills at 250 tokens/second
+- Waits automatically when quota insufficient
+- Consumes tokens only for successful requests
+
+### Intelligent Retry
+
+- Parses `Retry-After` header from Google's 429 responses
+- Exponential backoff: 2s, 4s, 8s for retries
+- Retries only failed messages, not entire batch
+- Tracks and reports success rates
+
+### Performance Stats
+
+After each operation, see quota usage:
+```
+Rate limiter stats - Quota consumed: 2500, Time waited: 8.3s,
+Batch size: 45, Success rate: 96.2%
+```
+
 ## Configuration
 
 Configuration is managed via environment variables in `.env`:

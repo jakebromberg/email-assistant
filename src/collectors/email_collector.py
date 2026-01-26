@@ -52,7 +52,7 @@ class EmailCollector:
         self,
         months: int = 6,
         max_emails: Optional[int] = None,
-        batch_size: int = 100
+        batch_size: int = 50
     ) -> int:
         """
         Export historical emails from Gmail to database.
@@ -60,7 +60,7 @@ class EmailCollector:
         Args:
             months: Number of months to go back
             max_emails: Maximum number of emails to export (None for unlimited)
-            batch_size: Number of emails to fetch per batch
+            batch_size: Number of emails to fetch per batch (default: 50, lower to avoid rate limits)
 
         Returns:
             Number of emails exported
@@ -100,8 +100,17 @@ class EmailCollector:
             logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch_ids)} emails)...")
 
             try:
-                # Fetch emails from Gmail
-                gmail_emails = self.client.get_messages_batch(batch_ids)
+                # Fetch emails from Gmail (with smart quota-aware rate limiting)
+                gmail_emails = self.client.get_messages_batch(
+                    batch_ids,
+                    batch_size=batch_size,
+                    message_format='full'
+                )
+
+                if not gmail_emails:
+                    logger.warning(f"No emails fetched in batch {batch_num}")
+                    failed_count += len(batch_ids)
+                    continue
 
                 # Save to database
                 with self.database.get_session() as session:
@@ -109,9 +118,15 @@ class EmailCollector:
                     saved = repo.save_emails_batch(gmail_emails)
                     total_saved += len(saved)
 
+                    # Track partial failures
+                    if len(saved) < len(batch_ids):
+                        failed_in_batch = len(batch_ids) - len(saved)
+                        failed_count += failed_in_batch
+                        logger.warning(f"{failed_in_batch} emails failed in batch {batch_num}")
+
                 logger.info(
                     f"Batch {batch_num}/{total_batches} complete: "
-                    f"{len(saved)} emails saved (total: {total_saved})"
+                    f"{len(saved)}/{len(batch_ids)} emails saved (total: {total_saved}/{i + len(batch_ids)})"
                 )
 
             except Exception as e:
@@ -119,9 +134,10 @@ class EmailCollector:
                 failed_count += len(batch_ids)
                 continue
 
+        success_rate = (total_saved / len(message_ids) * 100) if message_ids else 0
         logger.info(
-            f"Historical export complete: {total_saved} emails saved, "
-            f"{failed_count} failed"
+            f"Historical export complete: {total_saved}/{len(message_ids)} emails saved "
+            f"({success_rate:.1f}% success rate), {failed_count} failed"
         )
 
         return total_saved
