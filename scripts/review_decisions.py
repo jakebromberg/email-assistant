@@ -140,7 +140,7 @@ def main():
         query = session.query(EmailAction).filter(
             EmailAction.source == 'bot',
             EmailAction.timestamp >= start_date
-        ).order_by(EmailAction.timestamp.desc())
+        )
 
         # Apply filter
         if args.filter == 'archived':
@@ -161,6 +161,16 @@ def main():
                 'timestamp': action.timestamp,
                 'action_data': action.action_data,
             })
+
+    # Sort by confidence: most uncertain (closest to 0.5) first
+    def confidence_sort_key(action_data):
+        score = action_data['action_data'].get('score')
+        if score is None or not isinstance(score, (int, float)):
+            return 999  # Put invalid scores at the end
+        # Distance from 0.5 (smaller distance = less confident)
+        return abs(score - 0.5)
+
+    action_data_list.sort(key=confidence_sort_key)
 
     if not action_data_list:
         print(colored(f"\nNo bot decisions found in last {args.days} day(s)", Colors.YELLOW))
