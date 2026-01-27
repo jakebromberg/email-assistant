@@ -22,6 +22,7 @@ import sys
 import os
 import tty
 import termios
+import shlex
 import argparse
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -328,19 +329,29 @@ def main():
                         for idx, cat in enumerate(categories, 1):
                             print(f"{colored(str(idx) + '.', Colors.CYAN)} {cat}")
 
-                        print(colored("\nEnter one or more categories (e.g., '1' or '1 3 5' or '1,3,5'):", Colors.YELLOW))
+                        print(colored("\nSelect by number or create new labels:", Colors.YELLOW))
+                        print(colored("  Examples: '1' or '1 3' or 'Bot/MyNewLabel' or '1 \"Bot/My Label\"'", Colors.YELLOW))
                         cat_input = input(colored("Categories: ", Colors.BOLD)).strip()
 
-                        # Parse multiple category choices
+                        # Parse multiple category choices (supporting quoted strings for multi-word labels)
                         selected_labels = []
-                        for part in cat_input.replace(',', ' ').split():
+                        try:
+                            parts = shlex.split(cat_input.replace(',', ' '))
+                        except ValueError:
+                            # If shlex fails, fall back to simple split
+                            parts = cat_input.replace(',', ' ').split()
+
+                        for part in parts:
                             if part.isdigit():
                                 idx = int(part)
                                 if 1 <= idx <= len(categories):
                                     selected_labels.append(categories[idx - 1])
+                                else:
+                                    print(colored(f"Warning: Category number {idx} out of range, skipping", Colors.YELLOW))
                             else:
-                                # Allow entering category name directly
+                                # Allow entering new category name directly
                                 selected_labels.append(part)
+                                print(colored(f"  → Creating new label: {part}", Colors.CYAN))
 
                         if not selected_labels:
                             print(colored("No valid categories selected, skipping label correction.", Colors.YELLOW))
