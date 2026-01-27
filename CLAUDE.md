@@ -353,6 +353,103 @@ Scheduled jobs:
 - Precision for archive > 90% (configurable) ✓
 - Recall for important emails > 95% ✓
 
+## Testing Infrastructure
+
+**Comprehensive test suite with 202 tests and 71% code coverage.**
+
+### Test Organization
+
+The project uses a modern, fixture-based testing architecture that eliminates duplication and ensures consistency:
+
+**Shared Fixtures** (`tests/conftest.py` - 376 lines):
+- **Database fixtures**: `temp_db`, `temp_db_session`, `email_repo`, `feature_store`
+- **Factory fixtures**: `email_factory`, `action_factory`, `features_factory`
+- **Gmail mocks**: `mock_gmail_client`, `mock_gmail_ops`, `mock_gmail_auth`
+- **Helpers**: `sample_gmail_message`
+
+**Module-Specific Fixtures** (534 lines total):
+- `tests/test_gmail/conftest.py` - Gmail message variants, operation results
+- `tests/test_ml/conftest.py` - Training data, models, scorers, predictions
+- `tests/test_triage/conftest.py` - Pipeline dependencies, extractors, triage results
+
+**Test Utilities** (`tests/test_utils.py` - 350 lines):
+- Gmail message creation helpers
+- Assertion helpers for emails, features, operations, decisions
+- Mock data creators
+- Comparison utilities
+
+### Test Coverage by Module
+
+**High Coverage (>90%)**:
+- `gmail/operations.py`: 97%
+- `gmail/rate_limiter.py`: 99%
+- `features/metadata.py`: 98%
+- `gmail/models.py`: 94%
+- `features/historical.py`: 93%
+- `ml/evaluation.py`: 93%
+
+**Total Tests**: 202 tests across all modules
+- `test_database`: 13 tests
+- `test_gmail`: 36 tests
+- `test_ml`: 70 tests
+- `test_scripts`: 27 tests
+- `test_triage`: 2 tests
+- `test_integration`: 43 tests
+- `test_conftest`: 11 tests
+
+**Test Execution**: ~34 seconds for full suite
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run with verbose output
+pytest tests/ -v
+
+# Run with coverage report
+pytest tests/ --cov=src --cov-report=html
+
+# Run specific module
+pytest tests/test_gmail/ -v
+
+# Run specific test file
+pytest tests/test_gmail/test_operations.py -v
+
+# Run tests matching pattern
+pytest tests/ -k "test_archive"
+
+# Run with output (disable capture)
+pytest tests/ -s
+```
+
+### Test Refactoring Achievement
+
+The test infrastructure underwent a comprehensive 5-phase refactoring:
+
+**Impact**:
+- Eliminated 195 lines of duplicate code (39% reduction in duplication)
+- Established consistent testing patterns across all modules
+- Created 10 shared + 25 module-specific fixtures
+- Added 15 utility functions for common operations
+- Comprehensive 714-line testing guide (`tests/README.md`)
+- Zero regressions (all 202 tests passing)
+
+**Documentation**:
+- `tests/README.md` - Complete testing guide with examples
+- `MIGRATION_PROGRESS.md` - Refactoring history and metrics
+
+### CI/CD Integration
+
+Automated testing runs on every push and pull request via GitHub Actions:
+- Tests run on Python 3.12 and 3.13
+- Coverage reports generated and tracked
+- All dependencies installed from requirements.txt
+- Fails if tests don't pass or coverage drops
+
+See `.github/workflows/tests.yml` for configuration.
+
 ## Privacy & Security
 
 - **OAuth tokens**: Stored locally in `credentials/token.json` (gitignored)

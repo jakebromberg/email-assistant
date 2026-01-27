@@ -473,24 +473,92 @@ Log levels can be configured via `LOG_LEVEL` in `.env`.
 
 ## Development
 
-### Running Tests
+### Testing
+
+This project has a comprehensive test suite with **202 tests** and **71% code coverage**.
+
+#### Quick Start
 
 ```bash
 # Run all tests
-pytest
+pytest tests/
 
-# Run with coverage
-pytest --cov=src
+# Run with verbose output
+pytest tests/ -v
 
-# Run specific test file
-pytest tests/test_gmail/test_client.py
+# Run with coverage report
+pytest tests/ --cov=src --cov-report=html
+
+# Run specific module
+pytest tests/test_gmail/
+
+# Run specific test
+pytest tests/test_gmail/test_operations.py::test_archive_dry_run
 ```
+
+#### Test Infrastructure
+
+The test suite uses a modern fixture-based architecture:
+
+**Shared Fixtures** (`tests/conftest.py`):
+- Database fixtures: `temp_db`, `temp_db_session`, `email_repo`, `feature_store`
+- Factory fixtures: `email_factory`, `action_factory`, `features_factory`
+- Gmail mocks: `mock_gmail_client`, `mock_gmail_ops`, `mock_gmail_auth`
+
+**Module-Specific Fixtures**:
+- `tests/test_gmail/conftest.py` - Gmail message variants, operation results
+- `tests/test_ml/conftest.py` - Training data, models, scorers, predictions
+- `tests/test_triage/conftest.py` - Pipeline dependencies, extractors, results
+
+**Test Utilities** (`tests/test_utils.py`):
+- Gmail message creation helpers
+- Assertion helpers for email, features, operations
+- Mock data creators
+
+#### Writing Tests
+
+Example using shared fixtures:
+
+```python
+def test_save_email(email_factory, email_repo):
+    # Create test email with defaults
+    email = email_factory(subject="Test Subject")
+
+    # Retrieve and verify
+    saved = email_repo.get_by_id(email.message_id)
+    assert saved.subject == "Test Subject"
+```
+
+For complete testing documentation, see **[tests/README.md](tests/README.md)**.
+
+#### Test Coverage
+
+Current coverage by module:
+- Gmail operations: 97%
+- Rate limiter: 99%
+- Email models: 94%
+- Feature extraction: 93-98%
+- ML evaluation: 93%
+- Overall: **71%**
+
+#### Running in CI/CD
+
+Tests are automatically run on every push via GitHub Actions:
+
+```bash
+# What CI runs
+pytest tests/ --cov=src --cov-report=xml
+```
+
+See `.github/workflows/tests.yml` for the full CI configuration.
 
 ### Code Style
 
 - Type hints throughout
 - Docstrings for all public functions
 - PEP 8 compliant
+- Pytest for all tests
+- Mock external dependencies (Gmail API)
 
 ## Security & Privacy
 
