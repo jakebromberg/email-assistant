@@ -295,61 +295,79 @@ def main():
                     print(colored("\nWhat was wrong?", Colors.BOLD))
                     print(colored("1.", Colors.CYAN) + " Wrong decision (archive vs keep)")
                     print(colored("2.", Colors.CYAN) + " Wrong label")
+                    print(colored("Enter one or more (e.g., '1' or '1 2' or '1,2'):", Colors.YELLOW))
 
-                    choice = input(colored("\nChoice (1/2): ", Colors.BOLD)).strip()
+                    choice_input = input(colored("\nChoice: ", Colors.BOLD)).strip()
 
-                    if choice == '1':
-                        # Infer correct decision from what bot did
+                    # Parse multiple choices (space or comma separated)
+                    choices = set()
+                    for part in choice_input.replace(',', ' ').split():
+                        if part in ['1', '2']:
+                            choices.add(part)
+
+                    if not choices:
+                        print(colored("Invalid choice. Please enter 1, 2, or both.", Colors.RED))
+                        continue
+
+                    # Prepare feedback parameters
+                    feedback_params = {'message_id': email.message_id}
+                    feedback_messages = []
+
+                    # Handle wrong decision (choice 1)
+                    if '1' in choices:
                         bot_decision = action_data['action_type']
                         correct_decision = 'keep' if bot_decision == 'archive' else 'archive'
+                        feedback_params['decision_correct'] = False
+                        feedback_params['correct_decision'] = correct_decision
+                        feedback_messages.append(f"should {correct_decision}")
 
-                        repo.save_feedback(
-                            message_id=email.message_id,
-                            decision_correct=False,
-                            correct_decision=correct_decision
-                        )
-                        session.commit()
-                        feedback_history.append({
-                            'email_index': email_index,
-                            'message_id': email.message_id,
-                            'action': 'incorrect'
-                        })
-                        corrected_count += 1
-                        reviewed += 1
-                        print(colored(f"✓ Feedback recorded (should {correct_decision})", Colors.GREEN))
-                        email_index += 1
-                        break
-
-                    elif choice == '2':
-                        # Show available categories
+                    # Handle wrong label (choice 2)
+                    if '2' in choices:
                         categories = categorizer.get_all_categories()
                         print(colored("\nAvailable categories:", Colors.BOLD))
                         for idx, cat in enumerate(categories, 1):
                             print(f"{colored(str(idx) + '.', Colors.CYAN)} {cat}")
 
-                        cat_choice = input(colored("\nSelect correct category (number or name): ", Colors.BOLD)).strip()
+                        print(colored("\nEnter one or more categories (e.g., '1' or '1 3 5' or '1,3,5'):", Colors.YELLOW))
+                        cat_input = input(colored("Categories: ", Colors.BOLD)).strip()
 
-                        if cat_choice.isdigit() and 1 <= int(cat_choice) <= len(categories):
-                            correct_label = categories[int(cat_choice) - 1]
+                        # Parse multiple category choices
+                        selected_labels = []
+                        for part in cat_input.replace(',', ' ').split():
+                            if part.isdigit():
+                                idx = int(part)
+                                if 1 <= idx <= len(categories):
+                                    selected_labels.append(categories[idx - 1])
+                            else:
+                                # Allow entering category name directly
+                                selected_labels.append(part)
+
+                        if not selected_labels:
+                            print(colored("No valid categories selected, skipping label correction.", Colors.YELLOW))
                         else:
-                            correct_label = cat_choice
+                            # Store as comma-separated string if multiple, or single string
+                            correct_label = ','.join(selected_labels) if len(selected_labels) > 1 else selected_labels[0]
+                            feedback_params['label_correct'] = False
+                            feedback_params['correct_label'] = correct_label
+                            label_display = ', '.join(selected_labels)
+                            feedback_messages.append(f"labels: {label_display}")
 
-                        repo.save_feedback(
-                            message_id=email.message_id,
-                            label_correct=False,
-                            correct_label=correct_label
-                        )
-                        session.commit()
-                        feedback_history.append({
-                            'email_index': email_index,
-                            'message_id': email.message_id,
-                            'action': 'incorrect'
-                        })
-                        corrected_count += 1
-                        reviewed += 1
-                        print(colored("✓ Feedback recorded", Colors.GREEN))
-                        email_index += 1
-                        break
+                    # Save all feedback at once
+                    repo.save_feedback(**feedback_params)
+                    session.commit()
+                    feedback_history.append({
+                        'email_index': email_index,
+                        'message_id': email.message_id,
+                        'action': 'incorrect'
+                    })
+                    corrected_count += 1
+                    reviewed += 1
+
+                    # Display confirmation message
+                    message = "✓ Feedback recorded (" + ", ".join(feedback_messages) + ")"
+                    print(colored(message, Colors.GREEN))
+                    email_index += 1
+                    break
 
                 elif response == 'c':
                     # Add comment
