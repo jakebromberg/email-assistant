@@ -142,53 +142,29 @@ class TestReviewDecisionsSessionManagement:
 class TestReviewDecisionsConfidenceSorting:
     """Test confidence-based sorting of bot decisions."""
 
-    def test_sorts_by_distance_from_half(self, tmp_path):
+    def test_sorts_by_distance_from_half(self, temp_db, email_factory, action_factory):
         """Test that actions are sorted by confidence (distance from 0.5)."""
-        from src.database import Database
-
-        db_path = tmp_path / "test.db"
-        db = Database(str(db_path))
-
-        from src.database.schema import Base
-        Base.metadata.create_all(db.engine)
-
         # Add emails with different confidence scores
         scores = [0.8, 0.45, 0.1, 0.52, 0.3]
-        with db.get_session() as session:
-            for i, score in enumerate(scores):
-                email = Email(
-                    message_id=f"test{i}",
-                    thread_id=f"thread{i}",
-                    from_address=f"sender{i}@example.com",
-                    from_name=f"Sender {i}",
-                    to_address="me@example.com",
-                    subject=f"Test Email {i}",
-                    body_plain=f"Test body {i}",
-                    body_html=f"<p>Test body {i}</p>",
-                    date=datetime.now() - timedelta(hours=i+1),
-                    labels=["INBOX"],
-                    snippet=f"Test snippet {i}",
-                    was_read=False,
-                    was_archived=False,
-                    is_important=False,
-                    is_starred=False,
-                    opened_at=None
-                )
-                session.add(email)
+        for i, score in enumerate(scores):
+            email = email_factory(
+                message_id=f"test{i}",
+                from_address=f"sender{i}@example.com",
+                from_name=f"Sender {i}",
+                subject=f"Test Email {i}",
+                date=datetime.now() - timedelta(hours=i+1)
+            )
 
-                action = EmailAction(
-                    message_id=f"test{i}",
-                    action_type="archive" if score < 0.5 else "keep",
-                    source="bot",
-                    timestamp=datetime.now() - timedelta(hours=i),
-                    action_data={'score': score, 'confidence': 'low' if 0.3 < score < 0.7 else 'high'}
-                )
-                session.add(action)
-            session.commit()
+            action = action_factory(
+                message_id=f"test{i}",
+                action_type="archive" if score < 0.5 else "keep",
+                timestamp=datetime.now() - timedelta(hours=i),
+                action_data={'score': score, 'confidence': 'low' if 0.3 < score < 0.7 else 'high'}
+            )
 
         # Extract and sort (simulating the script)
         action_data_list = []
-        with db.get_session() as session:
+        with temp_db.get_session() as session:
             actions = session.query(EmailAction).filter(
                 EmailAction.source == 'bot'
             ).all()
@@ -215,16 +191,8 @@ class TestReviewDecisionsConfidenceSorting:
         sorted_scores = [ad['action_data']['score'] for ad in action_data_list]
         assert sorted_scores == [0.52, 0.45, 0.3, 0.8, 0.1]
 
-    def test_invalid_scores_sorted_to_end(self, tmp_path):
+    def test_invalid_scores_sorted_to_end(self, temp_db, email_factory, action_factory):
         """Test that invalid/missing scores are sorted to the end."""
-        from src.database import Database
-
-        db_path = tmp_path / "test.db"
-        db = Database(str(db_path))
-
-        from src.database.schema import Base
-        Base.metadata.create_all(db.engine)
-
         # Add emails with various score types
         test_cases = [
             ("test0", 0.4, "valid"),
@@ -233,41 +201,25 @@ class TestReviewDecisionsConfidenceSorting:
             ("test3", 0.6, "valid2"),
         ]
 
-        with db.get_session() as session:
-            for i, (msg_id, score, label) in enumerate(test_cases):
-                email = Email(
-                    message_id=msg_id,
-                    thread_id=f"thread{i}",
-                    from_address=f"sender{i}@example.com",
-                    from_name=f"Sender {i}",
-                    to_address="me@example.com",
-                    subject=f"Test Email {i}",
-                    body_plain=f"Test body {i}",
-                    body_html=f"<p>Test body {i}</p>",
-                    date=datetime.now() - timedelta(hours=i+1),
-                    labels=["INBOX"],
-                    snippet=f"Test snippet {i}",
-                    was_read=False,
-                    was_archived=False,
-                    is_important=False,
-                    is_starred=False,
-                    opened_at=None
-                )
-                session.add(email)
+        for i, (msg_id, score, label) in enumerate(test_cases):
+            email = email_factory(
+                message_id=msg_id,
+                from_address=f"sender{i}@example.com",
+                from_name=f"Sender {i}",
+                subject=f"Test Email {i}",
+                date=datetime.now() - timedelta(hours=i+1)
+            )
 
-                action = EmailAction(
-                    message_id=msg_id,
-                    action_type="archive",
-                    source="bot",
-                    timestamp=datetime.now() - timedelta(hours=i),
-                    action_data={'score': score, 'label': label}
-                )
-                session.add(action)
-            session.commit()
+            action = action_factory(
+                message_id=msg_id,
+                action_type="archive",
+                timestamp=datetime.now() - timedelta(hours=i),
+                action_data={'score': score, 'label': label}
+            )
 
         # Extract and sort
         action_data_list = []
-        with db.get_session() as session:
+        with temp_db.get_session() as session:
             actions = session.query(EmailAction).filter(
                 EmailAction.source == 'bot'
             ).all()
@@ -297,42 +249,15 @@ class TestReviewDecisionsConfidenceSorting:
 class TestReviewDecisionsUndoFunctionality:
     """Test undo functionality in review_decisions script."""
 
-    def test_undo_removes_feedback_from_database(self, tmp_path):
+    def test_undo_removes_feedback_from_database(self, temp_db, email_factory):
         """Test that undo deletes feedback from database."""
-        from src.database import Database
         from src.database.repository import EmailRepository
 
-        db_path = tmp_path / "test.db"
-        db = Database(str(db_path))
-
-        from src.database.schema import Base
-        Base.metadata.create_all(db.engine)
-
-        # Add test email
-        with db.get_session() as session:
-            email = Email(
-                message_id="test123",
-                thread_id="thread123",
-                from_address="sender@example.com",
-                from_name="Test Sender",
-                to_address="me@example.com",
-                subject="Test Email",
-                body_plain="Test body",
-                body_html="<p>Test body</p>",
-                date=datetime.now(),
-                labels=["INBOX"],
-                snippet="Test snippet",
-                was_read=False,
-                was_archived=False,
-                is_important=False,
-                is_starred=False,
-                opened_at=None
-            )
-            session.add(email)
-            session.commit()
+        # Add test email using factory
+        email = email_factory(message_id="test123")
 
         # Simulate feedback and undo (as script would do)
-        with db.get_session() as session:
+        with temp_db.get_session() as session:
             repo = EmailRepository(session)
 
             # Save feedback
@@ -402,7 +327,7 @@ class TestReviewDecisionsCorrectDecisionInference:
         correct_decision = 'keep' if bot_decision == 'archive' else 'archive'
         assert correct_decision == 'archive'
 
-    def test_decision_inference_with_action_data(self, tmp_path):
+    def test_decision_inference_with_action_data(self):
         """Test decision inference with real action data structure."""
         action_data = {
             'message_id': 'test123',
