@@ -468,3 +468,211 @@ class TestReviewDecisionsCorrectDecisionInference:
         correct_decision = 'keep' if bot_decision == 'archive' else 'archive'
 
         assert correct_decision == 'keep'
+
+
+class TestReviewDecisionsMultiSelection:
+    """Test multi-selection feedback functionality."""
+
+    def test_parse_single_choice(self):
+        """Test parsing single choice input."""
+        choice_input = '1'
+        choices = set()
+        for part in choice_input.replace(',', ' ').split():
+            if part in ['1', '2']:
+                choices.add(part)
+
+        assert choices == {'1'}
+
+    def test_parse_multiple_choices_space_separated(self):
+        """Test parsing multiple choices separated by spaces."""
+        choice_input = '1 2'
+        choices = set()
+        for part in choice_input.replace(',', ' ').split():
+            if part in ['1', '2']:
+                choices.add(part)
+
+        assert choices == {'1', '2'}
+
+    def test_parse_multiple_choices_comma_separated(self):
+        """Test parsing multiple choices separated by commas."""
+        choice_input = '1,2'
+        choices = set()
+        for part in choice_input.replace(',', ' ').split():
+            if part in ['1', '2']:
+                choices.add(part)
+
+        assert choices == {'1', '2'}
+
+    def test_parse_multiple_choices_mixed_separators(self):
+        """Test parsing multiple choices with mixed separators."""
+        choice_input = '1, 2'
+        choices = set()
+        for part in choice_input.replace(',', ' ').split():
+            if part in ['1', '2']:
+                choices.add(part)
+
+        assert choices == {'1', '2'}
+
+    def test_ignore_invalid_choices(self):
+        """Test that invalid choices are ignored."""
+        choice_input = '1 3 invalid'
+        choices = set()
+        for part in choice_input.replace(',', ' ').split():
+            if part in ['1', '2']:
+                choices.add(part)
+
+        assert choices == {'1'}
+
+
+class TestReviewDecisionsLabelParsing:
+    """Test label parsing with shlex for quoted strings."""
+
+    def test_parse_single_numeric_category(self):
+        """Test parsing single category number."""
+        import shlex
+        cat_input = '1'
+        parts = shlex.split(cat_input.replace(',', ' '))
+
+        assert parts == ['1']
+
+    def test_parse_multiple_numeric_categories(self):
+        """Test parsing multiple category numbers."""
+        import shlex
+        cat_input = '1 3 5'
+        parts = shlex.split(cat_input.replace(',', ' '))
+
+        assert parts == ['1', '3', '5']
+
+    def test_parse_single_word_label(self):
+        """Test parsing single-word custom label."""
+        import shlex
+        cat_input = 'Bot/Marketing'
+        parts = shlex.split(cat_input.replace(',', ' '))
+
+        assert parts == ['Bot/Marketing']
+
+    def test_parse_quoted_multi_word_label(self):
+        """Test parsing quoted multi-word label."""
+        import shlex
+        cat_input = '"Bot/Customer Support"'
+        parts = shlex.split(cat_input.replace(',', ' '))
+
+        assert parts == ['Bot/Customer Support']
+
+    def test_parse_mixed_numbers_and_labels(self):
+        """Test parsing mix of numbers and custom labels."""
+        import shlex
+        cat_input = '1 Bot/Urgent "Bot/Needs Review"'
+        parts = shlex.split(cat_input.replace(',', ' '))
+
+        assert parts == ['1', 'Bot/Urgent', 'Bot/Needs Review']
+
+    def test_parse_comma_separated_with_quotes(self):
+        """Test parsing comma-separated input with quotes."""
+        import shlex
+        cat_input = '1, "Bot/High Priority", 3'
+        parts = shlex.split(cat_input.replace(',', ' '))
+
+        assert parts == ['1', 'Bot/High Priority', '3']
+
+    def test_fallback_on_shlex_error(self):
+        """Test fallback to simple split on shlex parse error."""
+        import shlex
+        cat_input = '1 "unclosed quote'
+
+        try:
+            parts = shlex.split(cat_input.replace(',', ' '))
+        except ValueError:
+            parts = cat_input.replace(',', ' ').split()
+
+        # Should fall back to simple split
+        assert parts == ['1', '"unclosed', 'quote']
+
+
+class TestReviewDecisionsLabelSelection:
+    """Test label selection logic with numbers and custom labels."""
+
+    def test_select_by_valid_number(self):
+        """Test selecting label by valid category number."""
+        categories = ['Bot/Newsletter-Tech', 'Bot/Personal', 'Bot/Work']
+        selected_labels = []
+
+        part = '1'
+        if part.isdigit():
+            idx = int(part)
+            if 1 <= idx <= len(categories):
+                selected_labels.append(categories[idx - 1])
+
+        assert selected_labels == ['Bot/Newsletter-Tech']
+
+    def test_select_multiple_by_number(self):
+        """Test selecting multiple labels by number."""
+        categories = ['Bot/Newsletter-Tech', 'Bot/Personal', 'Bot/Work']
+        selected_labels = []
+
+        for part in ['1', '3']:
+            if part.isdigit():
+                idx = int(part)
+                if 1 <= idx <= len(categories):
+                    selected_labels.append(categories[idx - 1])
+
+        assert selected_labels == ['Bot/Newsletter-Tech', 'Bot/Work']
+
+    def test_create_custom_label(self):
+        """Test creating custom label by name."""
+        categories = ['Bot/Newsletter-Tech', 'Bot/Personal', 'Bot/Work']
+        selected_labels = []
+
+        part = 'Bot/Marketing'
+        if part.isdigit():
+            idx = int(part)
+            if 1 <= idx <= len(categories):
+                selected_labels.append(categories[idx - 1])
+        else:
+            selected_labels.append(part)
+
+        assert selected_labels == ['Bot/Marketing']
+
+    def test_mix_existing_and_custom_labels(self):
+        """Test mixing existing categories and custom labels."""
+        categories = ['Bot/Newsletter-Tech', 'Bot/Personal', 'Bot/Work']
+        selected_labels = []
+
+        for part in ['1', 'Bot/Urgent', '3']:
+            if part.isdigit():
+                idx = int(part)
+                if 1 <= idx <= len(categories):
+                    selected_labels.append(categories[idx - 1])
+            else:
+                selected_labels.append(part)
+
+        assert selected_labels == ['Bot/Newsletter-Tech', 'Bot/Urgent', 'Bot/Work']
+
+    def test_skip_out_of_range_number(self):
+        """Test that out-of-range numbers are skipped."""
+        categories = ['Bot/Newsletter-Tech', 'Bot/Personal', 'Bot/Work']
+        selected_labels = []
+
+        part = '10'
+        if part.isdigit():
+            idx = int(part)
+            if 1 <= idx <= len(categories):
+                selected_labels.append(categories[idx - 1])
+
+        assert selected_labels == []
+
+    def test_comma_separated_label_storage(self):
+        """Test storing multiple labels as comma-separated string."""
+        selected_labels = ['Bot/Newsletter-Tech', 'Bot/Urgent', 'Bot/Work']
+
+        correct_label = ','.join(selected_labels) if len(selected_labels) > 1 else selected_labels[0]
+
+        assert correct_label == 'Bot/Newsletter-Tech,Bot/Urgent,Bot/Work'
+
+    def test_single_label_storage(self):
+        """Test storing single label without comma."""
+        selected_labels = ['Bot/Marketing']
+
+        correct_label = ','.join(selected_labels) if len(selected_labels) > 1 else selected_labels[0]
+
+        assert correct_label == 'Bot/Marketing'
