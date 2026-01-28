@@ -325,6 +325,10 @@ python scripts/triage_inbox.py --days 2 --no-embeddings
 python scripts/review_decisions.py
 python scripts/review_decisions.py --days 7 --filter archived
 
+# Apply corrections from feedback (moves emails, fixes labels)
+python scripts/apply_corrections.py --dry-run  # Preview changes
+python scripts/apply_corrections.py            # Apply changes
+
 # Collect implicit feedback
 python scripts/collect_feedback.py --days 7
 
@@ -466,6 +470,7 @@ email-assistant/
 │   ├── test_model.py        # Test model predictions
 │   ├── triage_inbox.py      # Daily triage pipeline
 │   ├── review_decisions.py  # Interactive feedback CLI
+│   ├── apply_corrections.py # Apply feedback to Gmail
 │   ├── collect_feedback.py  # Implicit feedback collection
 │   └── retrain_model.py     # Retrain with feedback
 ├── tests/                   # Unit tests

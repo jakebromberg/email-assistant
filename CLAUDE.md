@@ -293,6 +293,7 @@ Scheduled jobs:
 **Scripts:**
 - `scripts/triage_inbox.py` - Main daily triage
 - `scripts/review_decisions.py` - Interactive feedback
+- `scripts/apply_corrections.py` - Apply feedback corrections to Gmail
 - `scripts/collect_feedback.py` - Implicit feedback collection
 - `scripts/retrain_model.py` - Model retraining
 
@@ -512,7 +513,13 @@ See `.github/workflows/tests.yml` for configuration.
    python scripts/review_decisions.py
    ```
 
-9. **Schedule automation:**
+9. **Apply corrections:**
+   ```bash
+   python scripts/apply_corrections.py --dry-run  # Preview
+   python scripts/apply_corrections.py            # Apply
+   ```
+
+10. **Schedule automation:**
    ```bash
    cp config/launchd/*.plist ~/Library/LaunchAgents/
    launchctl load ~/Library/LaunchAgents/com.user.email-triage.plist
@@ -549,6 +556,7 @@ email-assistant/
 │   ├── test_model.py
 │   ├── triage_inbox.py
 │   ├── review_decisions.py
+│   ├── apply_corrections.py
 │   ├── collect_feedback.py
 │   └── retrain_model.py
 │
