@@ -2,7 +2,6 @@
 
 import os
 from pathlib import Path
-from typing import List, Optional
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -40,7 +39,7 @@ class GmailAuthenticator:
         self,
         credentials_path: str,
         token_path: str,
-        scopes: Optional[List[str]] = None
+        scopes: list[str] | None = None
     ):
         """
         Initialize the Gmail authenticator.
@@ -107,7 +106,7 @@ class GmailAuthenticator:
 
         return creds
 
-    def get_credentials(self) -> Optional[Credentials]:
+    def get_credentials(self) -> Credentials | None:
         """
         Get existing credentials without triggering OAuth flow.
 

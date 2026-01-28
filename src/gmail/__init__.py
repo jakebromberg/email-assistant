@@ -1,10 +1,10 @@
 """Gmail API client and operations."""
 
 from .auth import GmailAuthenticator
-from .models import Email
 from .client import GmailClient
+from .models import Email
 from .operations import GmailOperations, OperationResult
-from .rate_limiter import RateLimiter, QuotaTracker, AdaptiveBatchSizer, QuotaCosts
+from .rate_limiter import AdaptiveBatchSizer, QuotaCosts, QuotaTracker, RateLimiter
 
 __all__ = [
     "GmailAuthenticator",

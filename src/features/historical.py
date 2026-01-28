@@ -1,14 +1,13 @@
 """Historical pattern feature extraction."""
 
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from ..database.schema import Email
 from ..database.repository import EmailRepository
+from ..database.schema import Email
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -44,7 +43,7 @@ class HistoricalPatternExtractor:
         self.session = session
         self.repo = EmailRepository(session)
 
-    def extract(self, email: Email) -> Dict[str, Any]:
+    def extract(self, email: Email) -> dict[str, Any]:
         """
         Extract historical pattern features for an email.
 
@@ -80,7 +79,7 @@ class HistoricalPatternExtractor:
 
         return features
 
-    def extract_batch(self, emails: list[Email]) -> list[Dict[str, Any]]:
+    def extract_batch(self, emails: list[Email]) -> list[dict[str, Any]]:
         """
         Extract historical features from multiple emails.
 
@@ -99,7 +98,7 @@ class HistoricalPatternExtractor:
         self,
         sender_address: str,
         before_date: datetime
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Calculate days since last email from sender.
 
@@ -125,7 +124,7 @@ class HistoricalPatternExtractor:
         delta = before_date - previous.date
         return delta.total_seconds() / 86400  # Convert to days
 
-    def _get_domain_stats(self, domain: str) -> Dict[str, Any]:
+    def _get_domain_stats(self, domain: str) -> dict[str, Any]:
         """
         Get statistics for a sender domain.
 

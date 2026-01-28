@@ -9,18 +9,17 @@ Usage:
     python scripts/retrain_model.py --use-feedback-only
 """
 
-import sys
 import argparse
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database import Database
 from src.database.schema import FeedbackReview
-from src.ml import ModelTrainer, ModelEvaluator
-from src.triage import FeedbackCollector
+from src.ml import ModelEvaluator, ModelTrainer
 from src.utils import Config, setup_logger
 
 
@@ -65,7 +64,7 @@ def main():
     # Check for feedback
     with db.get_session() as session:
         feedback_count = session.query(FeedbackReview).filter(
-            FeedbackReview.used_in_training == False
+            FeedbackReview.used_in_training.is_(False)
         ).count()
 
     if feedback_count == 0:
@@ -85,7 +84,7 @@ def main():
         logger.info("Preparing training data...")
         X, y = trainer.prepare_data(use_embeddings=not args.no_embeddings)
 
-        logger.info(f"Training data:")
+        logger.info("Training data:")
         logger.info(f"  - Samples: {len(X)}")
         logger.info(f"  - Features: {len(X.columns)}")
         logger.info(f"  - Positive rate: {y.mean():.1%}")
@@ -131,7 +130,7 @@ def main():
     # Mark feedback as used
     with db.get_session() as session:
         session.query(FeedbackReview).filter(
-            FeedbackReview.used_in_training == False
+            FeedbackReview.used_in_training.is_(False)
         ).update({'used_in_training': True})
 
     logger.info("\n=== Retraining Complete ===")

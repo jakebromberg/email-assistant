@@ -1,0 +1,24 @@
+# Ruff configuration
+# https://docs.astral.sh/ruff/configuration/
+
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # Pyflakes
+    "W",      # pycodestyle warnings
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "E741",   # ambiguous variable name (l, O, I) - common in math/ML code
+]
+
+[lint.per-file-ignores]
+"scripts/*" = ["F841"]  # Allow unused variables in scripts (often for clarity)
+"tests/*" = ["E501", "F841"]  # Allow longer lines and unused variables in tests
+
+[format]
+quote-style = "double"
+indent-style = "space"

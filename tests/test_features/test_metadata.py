@@ -1,11 +1,12 @@
 """Tests for metadata feature extraction."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock
 
-from src.features.metadata import MetadataExtractor
+import pytest
+
 from src.database.schema import Email
+from src.features.metadata import MetadataExtractor
 
 
 class TestMetadataExtractor:

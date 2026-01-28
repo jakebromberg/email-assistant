@@ -1,11 +1,10 @@
 """Tests for ML model evaluation."""
 
-import pytest
-import numpy as np
-from unittest.mock import patch
-import json
 import tempfile
 from pathlib import Path
+
+import numpy as np
+import pytest
 
 from src.ml.evaluation import ModelEvaluator
 

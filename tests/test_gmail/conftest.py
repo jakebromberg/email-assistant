@@ -1,7 +1,7 @@
 """Gmail-specific test fixtures."""
 
+
 import pytest
-from unittest.mock import Mock
 
 
 @pytest.fixture

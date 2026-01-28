@@ -11,16 +11,16 @@ Usage:
     python scripts/train_model.py --test-size 0.3
 """
 
-import sys
 import argparse
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database import Database
-from src.ml import ModelTrainer, ModelEvaluator
+from src.ml import ModelEvaluator, ModelTrainer
 from src.utils import Config, setup_logger
 
 
@@ -71,7 +71,7 @@ def main():
 
     # Check database has features
     stats = db.get_stats()
-    logger.info(f"Database stats:")
+    logger.info("Database stats:")
     logger.info(f"  - Emails: {stats['emails']}")
     logger.info(f"  - Email features: {stats.get('email_features', 'N/A')}")
     logger.info("")
@@ -92,7 +92,7 @@ def main():
             logger.info("Preparing training data...")
             X, y = trainer.prepare_data(use_embeddings=not args.no_embeddings)
 
-            logger.info(f"Training data prepared:")
+            logger.info("Training data prepared:")
             logger.info(f"  - Samples: {len(X)}")
             logger.info(f"  - Features: {len(X.columns)}")
             logger.info(f"  - Positive rate: {y.mean():.1%}")

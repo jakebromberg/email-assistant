@@ -11,8 +11,8 @@ Usage:
     python scripts/test_model.py --limit 20
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 # Add project root to path
@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database import Database, EmailRepository
 from src.features import FeatureStore
-from src.ml import EmailScorer, EmailCategorizer
+from src.ml import EmailCategorizer, EmailScorer
 from src.utils import Config, setup_logger
 
 
@@ -139,7 +139,7 @@ def main():
             logger.info(f"Was read: {'Yes' if email.was_read else 'No'}")
             logger.info(f"Was archived: {'Yes' if email.was_archived else 'No'}")
             logger.info("")
-            logger.info(f"Model prediction:")
+            logger.info("Model prediction:")
             logger.info(f"  - Score: {score:.3f}")
             logger.info(f"  - Decision: {decision['action']} ({decision['confidence']} confidence)")
             logger.info(f"  - Category: {category}")
@@ -147,13 +147,13 @@ def main():
 
             # Check if prediction matches reality
             if email.was_read and score >= 0.5:
-                logger.info(f"  ✓ Correct: Predicted would read, actually read")
+                logger.info("  ✓ Correct: Predicted would read, actually read")
             elif not email.was_read and score < 0.5:
-                logger.info(f"  ✓ Correct: Predicted wouldn't read, actually didn't read")
+                logger.info("  ✓ Correct: Predicted wouldn't read, actually didn't read")
             elif email.was_read and score < 0.5:
-                logger.info(f"  ✗ Incorrect: Predicted wouldn't read, but actually read")
+                logger.info("  ✗ Incorrect: Predicted wouldn't read, but actually read")
             else:
-                logger.info(f"  ✗ Incorrect: Predicted would read, but actually didn't")
+                logger.info("  ✗ Incorrect: Predicted would read, but actually didn't")
 
             logger.info("=" * 80)
 
@@ -163,13 +163,13 @@ def main():
         scores = [scorer.score_email(e, f) for e, f in emails_features]
         actual_read = [e.was_read for e, _ in emails_features]
 
-        logger.info(f"Score distribution:")
+        logger.info("Score distribution:")
         logger.info(f"  - Mean: {sum(scores) / len(scores):.3f}")
         logger.info(f"  - Min: {min(scores):.3f}")
         logger.info(f"  - Max: {max(scores):.3f}")
         logger.info("")
 
-        logger.info(f"Decisions:")
+        logger.info("Decisions:")
         high_keep = sum(1 for s in scores if s >= 0.7)
         high_archive = sum(1 for s in scores if s <= 0.3)
         low_conf = len(scores) - high_keep - high_archive

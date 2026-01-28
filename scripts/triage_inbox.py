@@ -11,16 +11,15 @@ Usage:
     python scripts/triage_inbox.py --model models/model_v20240101.txt
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
-from datetime import datetime
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.gmail import GmailAuthenticator, GmailClient, GmailOperations
 from src.database import Database
+from src.gmail import GmailAuthenticator, GmailClient, GmailOperations
 from src.triage import TriagePipeline
 from src.utils import Config, setup_logger
 

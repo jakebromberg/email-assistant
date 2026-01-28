@@ -1,20 +1,18 @@
 """Model training for email importance prediction."""
 
 import json
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score, precision_score, recall_score
 import lightgbm as lgb
-
+import pandas as pd
+from sklearn.metrics import precision_score, recall_score, roc_auc_score
+from sklearn.model_selection import train_test_split
 from sqlalchemy.orm import Session
 
 from ..database.schema import Email, EmailFeatures
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -68,10 +66,10 @@ class ModelTrainer:
             ...     trainer = ModelTrainer(session)
         """
         self.session = session
-        self.model: Optional[lgb.Booster] = None
-        self.feature_names: List[str] = []
+        self.model: lgb.Booster | None = None
+        self.feature_names: list[str] = []
 
-    def _extract_metadata_row(self, features: EmailFeatures) -> Dict[str, Any]:
+    def _extract_metadata_row(self, features: EmailFeatures) -> dict[str, Any]:
         """
         Extract metadata features into row dictionary.
 
@@ -91,7 +89,7 @@ class ModelTrainer:
             row[feat] = value if value is not None else 0
         return row
 
-    def _extract_historical_row(self, features: EmailFeatures) -> Dict[str, Any]:
+    def _extract_historical_row(self, features: EmailFeatures) -> dict[str, Any]:
         """
         Extract historical pattern features into row dictionary.
 
@@ -118,9 +116,9 @@ class ModelTrainer:
 
     def _extract_embedding_row(
         self,
-        subject_emb: Optional[List[float]],
-        body_emb: Optional[List[float]]
-    ) -> Optional[Dict[str, Any]]:
+        subject_emb: list[float] | None,
+        body_emb: list[float] | None
+    ) -> dict[str, Any] | None:
         """
         Extract embedding features into row dictionary.
 
@@ -161,7 +159,7 @@ class ModelTrainer:
         self,
         use_embeddings: bool = True,
         min_sender_count: int = 2
-    ) -> Tuple[pd.DataFrame, pd.Series]:
+    ) -> tuple[pd.DataFrame, pd.Series]:
         """
         Prepare training data from database.
 
@@ -234,12 +232,12 @@ class ModelTrainer:
 
     def train(
         self,
-        X: Optional[pd.DataFrame] = None,
-        y: Optional[pd.Series] = None,
+        X: pd.DataFrame | None = None,
+        y: pd.Series | None = None,
         test_size: float = 0.2,
         random_state: int = 42,
-        params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, float]:
+        params: dict[str, Any] | None = None
+    ) -> dict[str, float]:
         """
         Train LightGBM model.
 
@@ -322,7 +320,7 @@ class ModelTrainer:
             'features': len(X.columns),
         }
 
-        logger.info(f"Training complete:")
+        logger.info("Training complete:")
         logger.info(f"  - AUC: {metrics['auc']:.3f}")
         logger.info(f"  - Precision: {metrics['precision']:.3f}")
         logger.info(f"  - Recall: {metrics['recall']:.3f}")
@@ -332,7 +330,7 @@ class ModelTrainer:
     def save_model(
         self,
         model_dir: str = "models",
-        version: Optional[str] = None
+        version: str | None = None
     ) -> Path:
         """
         Save trained model to disk.
@@ -393,13 +391,13 @@ class ModelTrainer:
         feature_config_path = model_path_obj.parent / f"feature_config_v{version}.json"
 
         if feature_config_path.exists():
-            with open(feature_config_path, 'r') as f:
+            with open(feature_config_path) as f:
                 config = json.load(f)
                 self.feature_names = config['feature_names']
 
         logger.info(f"Model loaded from {model_path}")
 
-    def get_feature_importance(self, top_n: int = 20) -> Dict[str, float]:
+    def get_feature_importance(self, top_n: int = 20) -> dict[str, float]:
         """
         Get feature importance from trained model.
 

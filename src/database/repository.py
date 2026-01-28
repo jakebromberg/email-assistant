@@ -1,15 +1,14 @@
 """Repository layer for email data access."""
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from .schema import Email, EmailAction, FeedbackReview
 from ..gmail.models import Email as GmailEmail
 from ..utils import get_logger
-
+from .schema import Email, EmailAction, FeedbackReview
 
 logger = get_logger(__name__)
 
@@ -107,7 +106,7 @@ class EmailRepository:
             logger.debug(f"Saved new email: {gmail_email.message_id}")
             return email
 
-    def save_emails_batch(self, gmail_emails: List[GmailEmail]) -> List[Email]:
+    def save_emails_batch(self, gmail_emails: list[GmailEmail]) -> list[Email]:
         """
         Save multiple emails in batch.
 
@@ -131,7 +130,7 @@ class EmailRepository:
         logger.info(f"Saved batch of {len(saved)} emails")
         return saved
 
-    def get_by_id(self, message_id: str) -> Optional[Email]:
+    def get_by_id(self, message_id: str) -> Email | None:
         """
         Get email by message ID.
 
@@ -148,7 +147,7 @@ class EmailRepository:
         """
         return self.session.query(Email).filter(Email.message_id == message_id).first()
 
-    def get_by_ids(self, message_ids: List[str]) -> List[Email]:
+    def get_by_ids(self, message_ids: list[str]) -> list[Email]:
         """
         Get multiple emails by message IDs.
 
@@ -163,7 +162,7 @@ class EmailRepository:
         """
         return self.session.query(Email).filter(Email.message_id.in_(message_ids)).all()
 
-    def get_all(self, limit: Optional[int] = None, offset: int = 0) -> List[Email]:
+    def get_all(self, limit: int | None = None, offset: int = 0) -> list[Email]:
         """
         Get all emails with optional pagination.
 
@@ -187,7 +186,7 @@ class EmailRepository:
 
         return query.all()
 
-    def get_by_sender(self, sender_address: str, limit: Optional[int] = None) -> List[Email]:
+    def get_by_sender(self, sender_address: str, limit: int | None = None) -> list[Email]:
         """
         Get emails from a specific sender.
 
@@ -210,7 +209,7 @@ class EmailRepository:
 
         return query.all()
 
-    def get_unread(self, limit: Optional[int] = None) -> List[Email]:
+    def get_unread(self, limit: int | None = None) -> list[Email]:
         """
         Get unread emails.
 
@@ -235,9 +234,9 @@ class EmailRepository:
     def get_in_date_range(
         self,
         start_date: datetime,
-        end_date: Optional[datetime] = None,
-        limit: Optional[int] = None
-    ) -> List[Email]:
+        end_date: datetime | None = None,
+        limit: int | None = None
+    ) -> list[Email]:
         """
         Get emails in a date range.
 
@@ -285,7 +284,7 @@ class EmailRepository:
         message_id: str,
         action_type: str,
         source: str = 'user',
-        action_data: Optional[Dict[str, Any]] = None
+        action_data: dict[str, Any] | None = None
     ) -> EmailAction:
         """
         Record an action performed on an email.
@@ -319,7 +318,7 @@ class EmailRepository:
         logger.debug(f"Recorded action: {action_type} on {message_id} by {source}")
         return action
 
-    def get_actions_for_email(self, message_id: str) -> List[EmailAction]:
+    def get_actions_for_email(self, message_id: str) -> list[EmailAction]:
         """
         Get all actions for an email.
 
@@ -341,11 +340,11 @@ class EmailRepository:
     def save_feedback(
         self,
         message_id: str,
-        decision_correct: Optional[bool] = None,
-        label_correct: Optional[bool] = None,
-        correct_decision: Optional[str] = None,
-        correct_label: Optional[str] = None,
-        user_comment: Optional[str] = None
+        decision_correct: bool | None = None,
+        label_correct: bool | None = None,
+        correct_decision: str | None = None,
+        correct_label: str | None = None,
+        user_comment: str | None = None
     ) -> FeedbackReview:
         """
         Save feedback from interactive review.
@@ -384,7 +383,7 @@ class EmailRepository:
         logger.debug(f"Saved feedback for {message_id}")
         return feedback
 
-    def get_sender_stats(self, sender_address: str) -> Dict[str, Any]:
+    def get_sender_stats(self, sender_address: str) -> dict[str, Any]:
         """
         Get statistics for a sender.
 

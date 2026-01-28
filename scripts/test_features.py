@@ -9,8 +9,8 @@ Usage:
 """
 
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -18,10 +18,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.database import Database
 from src.database.schema import Email
 from src.features import (
-    MetadataExtractor,
-    HistoricalPatternExtractor,
     EmbeddingExtractor,
-    FeatureStore
+    FeatureStore,
+    HistoricalPatternExtractor,
+    MetadataExtractor,
 )
 from src.utils import Config, setup_logger
 

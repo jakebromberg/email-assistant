@@ -10,15 +10,15 @@ Usage:
     python scripts/collect_feedback.py --days 7
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.gmail import GmailAuthenticator, GmailClient
 from src.database import Database
+from src.gmail import GmailAuthenticator, GmailClient
 from src.triage import FeedbackCollector
 from src.utils import Config, setup_logger
 

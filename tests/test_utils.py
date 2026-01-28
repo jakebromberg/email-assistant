@@ -1,8 +1,8 @@
 """Utility functions for testing."""
 
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
 import base64
+from datetime import datetime, timedelta
+from typing import Any
 
 
 def create_gmail_message(
@@ -13,11 +13,11 @@ def create_gmail_message(
     subject: str = "Test Subject",
     body_plain: str = "Test body",
     body_html: str = "<p>Test body</p>",
-    labels: List[str] = None,
+    labels: list[str] = None,
     date: datetime = None,
-    headers: List[Dict[str, str]] = None,
+    headers: list[dict[str, str]] = None,
     has_attachments: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a Gmail API message structure for testing.
 
@@ -99,7 +99,7 @@ def create_gmail_newsletter_message(
     message_id: str = "newsletter123",
     from_email: str = "newsletter@example.com",
     subject: str = "Weekly Newsletter"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a Gmail API message structure for a newsletter.
 
@@ -170,7 +170,7 @@ def assert_email_features_complete(features):
         # Note: sender_days_since_last can be None for first email
 
 
-def create_date_range(days_back: int = 7, start_date: datetime = None) -> List[datetime]:
+def create_date_range(days_back: int = 7, start_date: datetime = None) -> list[datetime]:
     """
     Create a list of dates going back N days.
 
@@ -186,7 +186,7 @@ def create_date_range(days_back: int = 7, start_date: datetime = None) -> List[d
     return [start_date - timedelta(days=i) for i in range(days_back)]
 
 
-def mock_gmail_batch_response(emails: List[Dict[str, Any]]) -> List[Any]:
+def mock_gmail_batch_response(emails: list[dict[str, Any]]) -> list[Any]:
     """
     Create a mock Gmail batch response.
 
@@ -196,7 +196,6 @@ def mock_gmail_batch_response(emails: List[Dict[str, Any]]) -> List[Any]:
     Returns:
         List of mock email objects
     """
-    from unittest.mock import Mock
     from src.gmail.models import Email
 
     return [Email.from_gmail_message(email) for email in emails]
@@ -207,7 +206,7 @@ def create_mock_features(
     is_newsletter: bool = False,
     sender_open_rate: float = 0.5,
     sender_email_count: int = 5
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a mock features dictionary for testing.
 
@@ -237,7 +236,7 @@ def create_mock_features(
     }
 
 
-def assert_operation_result_success(result, expected_message_ids: List[str] = None):
+def assert_operation_result_success(result, expected_message_ids: list[str] = None):
     """
     Assert that an OperationResult indicates success.
 
@@ -271,8 +270,8 @@ def create_mock_triage_decision(
     action: str = 'keep',
     confidence: str = 'low',
     score: float = 0.5,
-    labels: List[str] = None
-) -> Dict[str, Any]:
+    labels: list[str] = None
+) -> dict[str, Any]:
     """
     Create a mock triage decision for testing.
 
@@ -297,7 +296,7 @@ def create_mock_triage_decision(
     }
 
 
-def assert_triage_decision_valid(decision: Dict[str, Any]):
+def assert_triage_decision_valid(decision: dict[str, Any]):
     """
     Assert that a triage decision has all required fields.
 

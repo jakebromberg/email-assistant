@@ -1,12 +1,10 @@
 """Historical email collector for database export."""
 
 from datetime import datetime, timedelta
-from typing import Optional, List
 
-from ..gmail import GmailClient
 from ..database import Database, EmailRepository
+from ..gmail import GmailClient
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -51,7 +49,7 @@ class EmailCollector:
     def export_historical(
         self,
         months: int = 6,
-        max_emails: Optional[int] = None,
+        max_emails: int | None = None,
         batch_size: int = 100
     ) -> int:
         """
@@ -225,7 +223,7 @@ class EmailCollector:
             logger.error(f"Failed to update email {message_id}: {e}")
             return False
 
-    def update_emails_batch(self, message_ids: List[str], batch_size: int = 100) -> int:
+    def update_emails_batch(self, message_ids: list[str], batch_size: int = 100) -> int:
         """
         Update multiple emails from Gmail.
 

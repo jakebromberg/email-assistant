@@ -1,11 +1,9 @@
 """Tests for triage pipeline."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
 from src.triage.pipeline import TriagePipeline
-from src.database.schema import Email
 
 
 class TestTriagePipeline:

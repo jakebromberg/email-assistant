@@ -1,15 +1,14 @@
 """Database connection and session management."""
 
-from pathlib import Path
 from contextlib import contextmanager
+from pathlib import Path
 
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from .schema import Base
 from ..utils import get_logger
-
+from .schema import Base
 
 logger = get_logger(__name__)
 
@@ -184,7 +183,7 @@ class Database:
             >>> stats = db.get_stats()
             >>> print(f"Total emails: {stats['emails']}")
         """
-        from .schema import Email, EmailLabel, EmailAction, FeedbackReview
+        from .schema import Email, EmailAction, EmailLabel, FeedbackReview
 
         with self.get_session() as session:
             return {

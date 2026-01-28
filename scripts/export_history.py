@@ -10,16 +10,16 @@ Usage:
     python scripts/export_history.py --months 3 --max 5000
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.gmail import GmailAuthenticator, GmailClient
-from src.database import Database
 from src.collectors import EmailCollector
+from src.database import Database
+from src.gmail import GmailAuthenticator, GmailClient
 from src.utils import Config, setup_logger
 
 
@@ -88,7 +88,7 @@ def main():
 
     # Check existing data
     stats = db.get_stats()
-    logger.info(f"Current database stats:")
+    logger.info("Current database stats:")
     logger.info(f"  - Emails: {stats['emails']}")
     logger.info(f"  - Labels: {stats['email_labels']}")
     logger.info(f"  - Actions: {stats['actions']}")
@@ -112,12 +112,12 @@ def main():
             batch_size=args.batch_size
         )
 
-        logger.info(f"\n=== Export Complete ===")
+        logger.info("\n=== Export Complete ===")
         logger.info(f"Exported {count} emails")
 
         # Show updated stats
         stats = db.get_stats()
-        logger.info(f"\nFinal database stats:")
+        logger.info("\nFinal database stats:")
         logger.info(f"  - Total emails: {stats['emails']}")
         logger.info(f"  - Total labels: {stats['email_labels']}")
         logger.info(f"  - Total actions: {stats['actions']}")

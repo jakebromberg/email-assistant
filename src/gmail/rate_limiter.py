@@ -1,10 +1,9 @@
 """Smart rate limiting for Gmail API quota management."""
 
 import time
-from typing import Optional
 from dataclasses import dataclass
-from ..utils import get_logger
 
+from ..utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -293,7 +292,7 @@ class RateLimiter:
         total_cost = self.calculate_batch_cost(batch_size, cost_per_item)
         self.quota_tracker.consume(total_cost)
 
-    def on_batch_success(self) -> Optional[int]:
+    def on_batch_success(self) -> int | None:
         """
         Record successful batch operation.
 
@@ -304,7 +303,7 @@ class RateLimiter:
             return self.batch_sizer.on_success()
         return None
 
-    def on_rate_limit(self, retry_after: Optional[int] = None) -> Optional[int]:
+    def on_rate_limit(self, retry_after: int | None = None) -> int | None:
         """
         Handle rate limit error.
 

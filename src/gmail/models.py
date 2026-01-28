@@ -4,7 +4,7 @@ import base64
 from dataclasses import dataclass
 from datetime import datetime
 from email.header import decode_header
-from typing import List, Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -42,13 +42,13 @@ class Email:
     subject: str
     date: datetime
     snippet: str
-    labels: List[str]
+    labels: list[str]
     body_plain: str
     body_html: str
-    headers: Dict[str, str]
+    headers: dict[str, str]
 
     @classmethod
-    def from_gmail_message(cls, message: Dict[str, Any]) -> 'Email':
+    def from_gmail_message(cls, message: dict[str, Any]) -> 'Email':
         """
         Parse a Gmail API message response into an Email object.
 
@@ -179,7 +179,7 @@ class Email:
             return datetime.now()
 
     @staticmethod
-    def _extract_body(payload: Dict[str, Any]) -> tuple[str, str]:
+    def _extract_body(payload: dict[str, Any]) -> tuple[str, str]:
         """
         Extract plain text and HTML body from email payload.
 
@@ -202,7 +202,7 @@ class Email:
             except Exception:
                 return ''
 
-        def extract_parts(part: Dict[str, Any]) -> tuple[str, str]:
+        def extract_parts(part: dict[str, Any]) -> tuple[str, str]:
             """
             Recursively extract body parts.
 

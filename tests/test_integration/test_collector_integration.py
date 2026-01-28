@@ -4,19 +4,19 @@ These tests validate that the collector and client work together correctly
 and respect Gmail API quota limits.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
+from collections.abc import Callable
 from itertools import count
 from unittest.mock import Mock, patch
-from datetime import datetime
-from typing import List, Tuple, Callable
+
+import pytest
 
 from src.collectors.email_collector import EmailCollector
-from src.gmail.client import GmailClient
-from src.gmail.auth import GmailAuthenticator
-from src.gmail.rate_limiter import QuotaCosts
 from src.database.database import Database
+from src.gmail.auth import GmailAuthenticator
+from src.gmail.client import GmailClient
+from src.gmail.rate_limiter import QuotaCosts
 
 
 class MockEmailFactory:
@@ -33,7 +33,7 @@ class MockEmailFactory:
             'threadId': f'thread_{unique_id}',
             'payload': {
                 'headers': [
-                    {'name': 'From', 'value': f'sender@example.com'},
+                    {'name': 'From', 'value': 'sender@example.com'},
                     {'name': 'To', 'value': 'recipient@example.com'},
                     {'name': 'Subject', 'value': f'Test Email {unique_id}'},
                     {'name': 'Date', 'value': 'Mon, 1 Jan 2024 12:00:00 +0000'},
@@ -50,7 +50,7 @@ class MockBatchRequest:
     def __init__(self, quota_tracker: 'QuotaTrackingMock', email_factory: MockEmailFactory):
         self.quota_tracker = quota_tracker
         self.email_factory = email_factory
-        self.requests: List[Tuple[Mock, Callable]] = []
+        self.requests: list[tuple[Mock, Callable]] = []
 
     def add(self, request: Mock, callback: Callable):
         """Add a request to the batch."""
@@ -391,7 +391,7 @@ class TestCollectorClientIntegration:
         )
 
         # Log batch statistics for visibility
-        print(f"\nBatch Statistics:")
+        print("\nBatch Statistics:")
         print(f"  Total batches: {len(quota_tracker.batch_requests)}")
         print(f"  Total quota consumed: {quota_tracker.total_consumed}")
         print(f"  Max batch quota: {quota_tracker.max_batch_quota}")

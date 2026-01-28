@@ -1,6 +1,5 @@
 """Tests for Gmail models."""
 
-import pytest
 import base64
 from datetime import datetime
 

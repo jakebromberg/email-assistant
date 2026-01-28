@@ -10,14 +10,14 @@ Usage:
 """
 
 import sys
+from datetime import datetime
 from pathlib import Path
-from datetime import datetime, timedelta
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database import Database, EmailRepository
-from src.database.schema import Email, EmailAction, FeedbackReview
+from src.database.schema import Email
 from src.utils import Config, setup_logger
 
 
@@ -131,7 +131,7 @@ def main():
     logger.info("6. Getting database stats...")
     try:
         stats = db.get_stats()
-        logger.info(f"   ✓ Database stats:")
+        logger.info("   ✓ Database stats:")
         logger.info(f"     - Emails: {stats['emails']}")
         logger.info(f"     - Labels: {stats['email_labels']}")
         logger.info(f"     - Actions: {stats['actions']}")
@@ -147,7 +147,7 @@ def main():
             repo = EmailRepository(session)
             sender_stats = repo.get_sender_stats("test@example.com")
 
-        logger.info(f"   ✓ Sender stats:")
+        logger.info("   ✓ Sender stats:")
         logger.info(f"     - Total emails: {sender_stats['total_emails']}")
         logger.info(f"     - Read count: {sender_stats['read_count']}")
         logger.info(f"     - Open rate: {sender_stats['open_rate']:.1%}\n")

@@ -11,8 +11,8 @@ Usage:
     python scripts/build_features.py --embeddings-only
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 # Add project root to path
@@ -20,10 +20,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database import Database
 from src.features import (
-    MetadataExtractor,
-    HistoricalPatternExtractor,
     EmbeddingExtractor,
-    FeatureStore
+    FeatureStore,
+    HistoricalPatternExtractor,
+    MetadataExtractor,
 )
 from src.utils import Config, setup_logger
 

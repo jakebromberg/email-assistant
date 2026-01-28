@@ -1,13 +1,12 @@
 """Topic embedding generation using sentence-transformers."""
 
-from typing import Dict, Any, Optional, List
-import numpy as np
+from typing import Any
 
+import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from ..database.schema import Email
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -33,7 +32,7 @@ class EmbeddingExtractor:
     DEFAULT_MODEL = 'all-MiniLM-L6-v2'  # 384-dim, fast, good quality
     MAX_LENGTH = 512  # Tokens
 
-    def __init__(self, model_name: Optional[str] = None):
+    def __init__(self, model_name: str | None = None):
         """
         Initialize embedding extractor.
 
@@ -46,7 +45,7 @@ class EmbeddingExtractor:
             >>> extractor = EmbeddingExtractor('all-mpnet-base-v2')
         """
         self.model_name = model_name or self.DEFAULT_MODEL
-        self.model: Optional[SentenceTransformer] = None
+        self.model: SentenceTransformer | None = None
         self._load_model()
 
     def _load_model(self) -> None:
@@ -59,7 +58,7 @@ class EmbeddingExtractor:
             logger.error(f"Failed to load embedding model: {e}")
             raise
 
-    def extract(self, email: Email) -> Dict[str, Any]:
+    def extract(self, email: Email) -> dict[str, Any]:
         """
         Extract embedding features from an email.
 
@@ -97,7 +96,7 @@ class EmbeddingExtractor:
 
         return features
 
-    def extract_batch(self, emails: List[Email]) -> List[Dict[str, Any]]:
+    def extract_batch(self, emails: list[Email]) -> list[dict[str, Any]]:
         """
         Extract embeddings from multiple emails efficiently.
 
@@ -164,7 +163,7 @@ class EmbeddingExtractor:
 
         return text
 
-    def _encode(self, text: str) -> List[float]:
+    def _encode(self, text: str) -> list[float]:
         """
         Encode single text to embedding.
 
@@ -183,7 +182,7 @@ class EmbeddingExtractor:
         embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding.tolist()
 
-    def _encode_batch(self, texts: List[str]) -> List[List[float]]:
+    def _encode_batch(self, texts: list[str]) -> list[list[float]]:
         """
         Encode multiple texts to embeddings.
 
@@ -223,8 +222,8 @@ class EmbeddingExtractor:
 
     def compute_similarity(
         self,
-        embedding1: List[float],
-        embedding2: List[float]
+        embedding1: list[float],
+        embedding2: list[float]
     ) -> float:
         """
         Compute cosine similarity between two embeddings.
@@ -257,7 +256,7 @@ class EmbeddingExtractor:
         return float(dot_product / (norm1 * norm2))
 
     @staticmethod
-    def get_feature_names() -> List[str]:
+    def get_feature_names() -> list[str]:
         """
         Get list of feature names produced by this extractor.
 

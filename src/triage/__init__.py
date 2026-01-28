@@ -1,7 +1,7 @@
 """Email triage pipeline and automation."""
 
-from .pipeline import TriagePipeline
 from .feedback import FeedbackCollector
+from .pipeline import TriagePipeline
 
 __all__ = [
     "TriagePipeline",

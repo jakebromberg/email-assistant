@@ -1,15 +1,14 @@
 """Feedback collection from user actions and labels."""
 
-from typing import Dict, Any, List
 from datetime import datetime, timedelta
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from ..gmail import GmailClient
 from ..database import EmailRepository
 from ..database.schema import EmailAction
+from ..gmail import GmailClient
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -54,7 +53,7 @@ class FeedbackCollector:
     def collect_feedback(
         self,
         days_back: int = 1
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Collect feedback from recent user actions.
 
@@ -125,7 +124,7 @@ class FeedbackCollector:
                     logger.warning(f"Failed to check email {action.message_id}: {e}")
                     continue
 
-        logger.info(f"Feedback collected:")
+        logger.info("Feedback collected:")
         logger.info(f"  - Bot actions: {feedback_stats['bot_actions']}")
         logger.info(f"  - False positives: {feedback_stats['false_positives']}")
         logger.info(f"  - Label changes: {feedback_stats['label_changes']}")
@@ -135,7 +134,7 @@ class FeedbackCollector:
     def get_feedback_for_retraining(
         self,
         session: Session
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get feedback data for model retraining.
 

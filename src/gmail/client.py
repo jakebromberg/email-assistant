@@ -1,19 +1,18 @@
 """Gmail API client for fetching emails."""
 
-import time
 import math
-from datetime import datetime
-from typing import List, Optional, Dict, Any, Literal, Tuple
+import time
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Literal
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from ..utils import get_logger
 from .auth import GmailAuthenticator
 from .models import Email
-from .rate_limiter import RateLimiter, QuotaCosts
-from ..utils import get_logger
-
+from .rate_limiter import QuotaCosts, RateLimiter
 
 logger = get_logger(__name__)
 
@@ -21,10 +20,10 @@ logger = get_logger(__name__)
 @dataclass
 class _BatchState:
     """Internal state for batch request processing."""
-    batch_results: List[Tuple[int, Any]]
-    failed_messages: List[Tuple[int, str]]
+    batch_results: list[tuple[int, Any]]
+    failed_messages: list[tuple[int, str]]
     rate_limit_hit: bool = False
-    retry_after_seconds: Optional[int] = None
+    retry_after_seconds: int | None = None
 
 
 class GmailClient:
@@ -96,11 +95,11 @@ class GmailClient:
         self,
         query: str = "",
         max_results: int = 100,
-        label_ids: Optional[List[str]] = None,
-        after_date: Optional[datetime] = None,
-        before_date: Optional[datetime] = None,
-        page_token: Optional[str] = None
-    ) -> tuple[List[str], Optional[str]]:
+        label_ids: list[str] | None = None,
+        after_date: datetime | None = None,
+        before_date: datetime | None = None,
+        page_token: str | None = None
+    ) -> tuple[list[str], str | None]:
         """
         List message IDs matching criteria.
 
@@ -142,7 +141,7 @@ class GmailClient:
             logger.debug(f"Listing messages: query='{full_query}', max={max_results}")
 
             # Build request parameters
-            params: Dict[str, Any] = {
+            params: dict[str, Any] = {
                 'userId': 'me',
                 'maxResults': min(max_results, 500),  # API limit is 500
             }
@@ -178,11 +177,11 @@ class GmailClient:
     def list_all_messages(
         self,
         query: str = "",
-        label_ids: Optional[List[str]] = None,
-        after_date: Optional[datetime] = None,
-        before_date: Optional[datetime] = None,
-        max_total: Optional[int] = None
-    ) -> List[str]:
+        label_ids: list[str] | None = None,
+        after_date: datetime | None = None,
+        before_date: datetime | None = None,
+        max_total: int | None = None
+    ) -> list[str]:
         """
         List all message IDs matching criteria (handles pagination).
 
@@ -332,10 +331,10 @@ class GmailClient:
 
     def _execute_batch_with_retry(
         self,
-        batch_ids: List[str],
+        batch_ids: list[str],
         message_format: str,
         max_retries: int = 3
-    ) -> Tuple[List[Tuple[int, Any]], bool, Optional[int]]:
+    ) -> tuple[list[tuple[int, Any]], bool, int | None]:
         """
         Execute batch request with retry logic.
 
@@ -398,7 +397,7 @@ class GmailClient:
 
         return state.batch_results, state.rate_limit_hit, state.retry_after_seconds
 
-    def _parse_batch_results(self, batch_results: List[Tuple[int, Any]]) -> List[Email]:
+    def _parse_batch_results(self, batch_results: list[tuple[int, Any]]) -> list[Email]:
         """
         Parse batch results into Email objects.
 
@@ -422,10 +421,10 @@ class GmailClient:
 
     def get_messages_batch(
         self,
-        message_ids: List[str],
-        batch_size: Optional[int] = None,
+        message_ids: list[str],
+        batch_size: int | None = None,
         message_format: Literal['full', 'metadata', 'minimal'] = 'full'
-    ) -> List[Email]:
+    ) -> list[Email]:
         """
         Fetch multiple messages efficiently using batch requests with smart rate limiting.
 
@@ -536,7 +535,7 @@ class GmailClient:
 
         return emails
 
-    def get_all_labels(self) -> List[Dict[str, str]]:
+    def get_all_labels(self) -> list[dict[str, str]]:
         """
         Get all Gmail labels.
 

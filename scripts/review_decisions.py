@@ -18,14 +18,14 @@ Usage:
     python scripts/review_decisions.py --filter archived
 """
 
-import sys
-import os
-import tty
-import termios
-import shlex
 import argparse
-from pathlib import Path
+import os
+import shlex
+import sys
+import termios
+import tty
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.database import Database, EmailRepository
 from src.database.schema import EmailAction, FeedbackReview
 from src.ml import EmailCategorizer
-from src.utils import Config, setup_logger
+from src.utils import Config
 
 
 # ANSI color codes

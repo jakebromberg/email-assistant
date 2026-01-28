@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Optional
+
 from dotenv import load_dotenv
 
 
@@ -46,7 +46,7 @@ class Config:
         self.DATA_DIR = os.getenv('DATA_DIR', 'data')
 
     @classmethod
-    def load(cls, env_file: Optional[str] = None) -> 'Config':
+    def load(cls, env_file: str | None = None) -> 'Config':
         """
         Load configuration from .env file and environment variables.
 

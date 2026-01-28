@@ -1,13 +1,9 @@
 """SQLAlchemy database schema for email storage."""
 
 from datetime import datetime
-from typing import List
 
-from sqlalchemy import (
-    Column, String, DateTime, Boolean, Integer, Float, Text, ForeignKey, JSON
-)
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import declarative_base, relationship
-
 
 Base = declarative_base()
 
@@ -79,13 +75,13 @@ class Email(Base):
         )
 
     @property
-    def user_labels(self) -> List[str]:
+    def user_labels(self) -> list[str]:
         """Get user-applied labels (excluding system labels)."""
         system_labels = {'INBOX', 'UNREAD', 'IMPORTANT', 'STARRED', 'SENT', 'DRAFT', 'TRASH', 'SPAM'}
         return [label for label in self.labels if label not in system_labels and not label.startswith('Bot/')]
 
     @property
-    def bot_labels(self) -> List[str]:
+    def bot_labels(self) -> list[str]:
         """Get bot-applied labels."""
         return [label for label in self.labels if label.startswith('Bot/')]
 

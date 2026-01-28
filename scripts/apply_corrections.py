@@ -11,17 +11,16 @@ Usage:
     python scripts/apply_corrections.py --dry-run
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
-from datetime import datetime
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.gmail import GmailAuthenticator, GmailClient, GmailOperations
 from src.database import Database, EmailRepository
-from src.database.schema import FeedbackReview, EmailAction
+from src.database.schema import EmailAction, FeedbackReview
+from src.gmail import GmailAuthenticator, GmailClient, GmailOperations
 from src.utils import Config, setup_logger
 
 
@@ -83,8 +82,8 @@ def main():
 
         # Get feedback with corrections (decision or label was wrong)
         corrections = session.query(FeedbackReview).filter(
-            (FeedbackReview.decision_correct == False) |
-            (FeedbackReview.label_correct == False)
+            (FeedbackReview.decision_correct.is_(False)) |
+            (FeedbackReview.label_correct.is_(False))
         ).all()
 
         if not corrections:
@@ -117,7 +116,7 @@ def main():
             try:
                 # Apply decision correction (move to inbox)
                 if feedback.correct_decision == 'keep':
-                    logger.info(f"  → Moving to inbox")
+                    logger.info("  → Moving to inbox")
                     result = ops.move_to_inbox([feedback.message_id], dry_run=args.dry_run)
 
                     if result.success:
@@ -133,13 +132,13 @@ def main():
                 # Apply label correction
                 if feedback.correct_label:
                     # Parse labels (may be comma-separated)
-                    correct_labels = [l.strip() for l in feedback.correct_label.split(',')]
+                    correct_labels = [lbl.strip() for lbl in feedback.correct_label.split(',')]
 
                     # Get current bot labels to remove
-                    current_bot_labels = [l for l in (email.labels or []) if l.startswith('Bot/')]
+                    current_bot_labels = [lbl for lbl in (email.labels or []) if lbl.startswith('Bot/')]
 
                     # Remove old bot labels (except Bot/AutoArchived if we're keeping)
-                    labels_to_remove = [l for l in current_bot_labels if l not in correct_labels]
+                    labels_to_remove = [lbl for lbl in current_bot_labels if lbl not in correct_labels]
 
                     if labels_to_remove:
                         logger.info(f"  → Removing labels: {', '.join(labels_to_remove)}")
@@ -150,7 +149,7 @@ def main():
                         )
 
                     # Add correct labels
-                    labels_to_add = [l for l in correct_labels if l not in current_bot_labels]
+                    labels_to_add = [lbl for lbl in correct_labels if lbl not in current_bot_labels]
 
                     if labels_to_add:
                         logger.info(f"  → Adding labels: {', '.join(labels_to_add)}")

@@ -1,8 +1,9 @@
 """Triage-specific test fixtures."""
 
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 @pytest.fixture

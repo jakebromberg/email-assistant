@@ -1,12 +1,13 @@
 """Tests for ML model training."""
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-import pandas as pd
-import numpy as np
+from unittest.mock import Mock, patch
 
-from src.ml.training import ModelTrainer
+import numpy as np
+import pandas as pd
+import pytest
+
 from src.database.schema import Email, EmailFeatures
+from src.ml.training import ModelTrainer
 
 
 class TestModelTrainer:

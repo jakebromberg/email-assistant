@@ -1,18 +1,17 @@
 """Shared test fixtures for all test modules."""
 
-import pytest
+from collections.abc import Generator
+from datetime import datetime
 from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Generator, List
 from unittest.mock import Mock
 
+import pytest
 from sqlalchemy.orm import Session
 
 from src.database import Database
-from src.database.schema import Base, Email, EmailAction, EmailFeatures
 from src.database.repository import EmailRepository
+from src.database.schema import Base, Email, EmailAction, EmailFeatures
 from src.features import FeatureStore
-
 
 # ============================================================================
 # Database Fixtures
@@ -103,7 +102,7 @@ def email_factory(temp_db_session: Session):
         body_plain: str = "Test body",
         body_html: str = "<p>Test body</p>",
         date: datetime = None,
-        labels: List[str] = None,
+        labels: list[str] = None,
         snippet: str = "Test snippet",
         was_read: bool = False,
         was_archived: bool = False,
@@ -224,8 +223,8 @@ def features_factory(temp_db_session: Session):
         thread_length: int = 1,
         day_of_week: int = 1,
         hour_of_day: int = 12,
-        subject_embedding: List[float] = None,
-        body_embedding: List[float] = None,
+        subject_embedding: list[float] = None,
+        body_embedding: list[float] = None,
         **kwargs
     ) -> EmailFeatures:
         """Create test email features with sensible defaults."""

@@ -1,16 +1,13 @@
 """Tests for review_decisions script."""
 
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock, call
-import sys
 import os
+import sys
+from datetime import datetime, timedelta
 
 # Add scripts directory to path for importing
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../scripts'))
 
-from src.database import Database
-from src.database.schema import Email, EmailAction, FeedbackReview
+from src.database.schema import EmailAction, FeedbackReview
 
 
 class TestReviewDecisionsSessionManagement:

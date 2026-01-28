@@ -1,15 +1,10 @@
 """Tests for Gmail rate limiting."""
 
-import pytest
 import time
-from unittest.mock import Mock, patch
 
-from src.gmail.rate_limiter import (
-    QuotaTracker,
-    AdaptiveBatchSizer,
-    RateLimiter,
-    QuotaCosts
-)
+import pytest
+
+from src.gmail.rate_limiter import AdaptiveBatchSizer, QuotaCosts, QuotaTracker, RateLimiter
 
 
 class TestQuotaCosts:

@@ -4,7 +4,6 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
-
 _loggers: dict[str, logging.Logger] = {}
 
 

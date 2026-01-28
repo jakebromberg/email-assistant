@@ -1,14 +1,13 @@
 """Email scoring and inference."""
 
-from typing import Dict, Any, List, Optional
 from pathlib import Path
+from typing import Any
 
-import pandas as pd
 import lightgbm as lgb
+import pandas as pd
 
 from ..database.schema import Email, EmailFeatures
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -46,7 +45,7 @@ class EmailScorer:
             >>> scorer = EmailScorer("models/model_v20240101.txt")
         """
         self.model = lgb.Booster(model_file=model_path)
-        self.feature_names: List[str] = []
+        self.feature_names: list[str] = []
         self._load_feature_config(model_path)
 
         logger.info(f"Email scorer initialized with model: {model_path}")
@@ -60,7 +59,7 @@ class EmailScorer:
         config_path = model_path_obj.parent / f"feature_config_v{version}.json"
 
         if config_path.exists():
-            with open(config_path, 'r') as f:
+            with open(config_path) as f:
                 config = json.load(f)
                 self.feature_names = config['feature_names']
         else:
@@ -99,8 +98,8 @@ class EmailScorer:
 
     def score_emails_batch(
         self,
-        emails_features: List[tuple[Email, EmailFeatures]]
-    ) -> List[float]:
+        emails_features: list[tuple[Email, EmailFeatures]]
+    ) -> list[float]:
         """
         Score multiple emails efficiently.
 
@@ -134,7 +133,7 @@ class EmailScorer:
         self,
         email: Email,
         features: EmailFeatures
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Extract features for prediction.
 
@@ -185,9 +184,9 @@ class EmailScorer:
     def make_decision(
         self,
         score: float,
-        high_keep_threshold: Optional[float] = None,
-        high_archive_threshold: Optional[float] = None
-    ) -> Dict[str, Any]:
+        high_keep_threshold: float | None = None,
+        high_archive_threshold: float | None = None
+    ) -> dict[str, Any]:
         """
         Make triage decision based on score.
 
@@ -234,10 +233,10 @@ class EmailScorer:
 
     def get_threshold_metrics(
         self,
-        scores: List[float],
-        labels: List[int],
+        scores: list[float],
+        labels: list[int],
         threshold: float
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculate metrics at a specific threshold.
 

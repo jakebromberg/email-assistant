@@ -1,9 +1,8 @@
 """Test the shared fixtures in conftest.py."""
 
-import pytest
 from datetime import datetime
 
-from src.database.schema import Email, EmailAction, EmailFeatures
+from src.database.schema import Email
 
 
 def test_temp_db_fixture(temp_db):

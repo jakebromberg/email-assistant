@@ -1,9 +1,10 @@
 """Tests for Gmail operations."""
 
-import pytest
 from unittest.mock import Mock
 
-from src.gmail.operations import GmailOperations, OperationResult
+import pytest
+
+from src.gmail.operations import GmailOperations
 
 
 class TestGmailOperations:

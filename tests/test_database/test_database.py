@@ -1,14 +1,12 @@
 """Tests for database connection and management."""
 
-import pytest
-import tempfile
 import os
-from pathlib import Path
+import tempfile
 
 from sqlalchemy import text
 
 from src.database.database import Database
-from src.database.schema import Base, Email
+from src.database.schema import Email
 
 
 class TestDatabase:

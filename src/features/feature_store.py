@@ -1,13 +1,12 @@
 """Feature storage and retrieval."""
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from ..database.schema import Email, EmailFeatures
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -44,7 +43,7 @@ class FeatureStore:
     def save_features(
         self,
         message_id: str,
-        features: Dict[str, Any]
+        features: dict[str, Any]
     ) -> EmailFeatures:
         """
         Save features for an email.
@@ -91,8 +90,8 @@ class FeatureStore:
 
     def save_features_batch(
         self,
-        features_list: List[tuple[str, Dict[str, Any]]]
-    ) -> List[EmailFeatures]:
+        features_list: list[tuple[str, dict[str, Any]]]
+    ) -> list[EmailFeatures]:
         """
         Save features for multiple emails.
 
@@ -118,7 +117,7 @@ class FeatureStore:
         logger.info(f"Saved features for {len(saved)} emails")
         return saved
 
-    def get_features(self, message_id: str) -> Optional[EmailFeatures]:
+    def get_features(self, message_id: str) -> EmailFeatures | None:
         """
         Get features for an email.
 
@@ -137,7 +136,7 @@ class FeatureStore:
             EmailFeatures.message_id == message_id
         ).first()
 
-    def get_features_batch(self, message_ids: List[str]) -> List[Optional[EmailFeatures]]:
+    def get_features_batch(self, message_ids: list[str]) -> list[EmailFeatures | None]:
         """
         Get features for multiple emails.
 
@@ -180,9 +179,9 @@ class FeatureStore:
 
     def get_all_features(
         self,
-        limit: Optional[int] = None,
+        limit: int | None = None,
         offset: int = 0
-    ) -> List[EmailFeatures]:
+    ) -> list[EmailFeatures]:
         """
         Get all computed features.
 
@@ -240,8 +239,8 @@ class FeatureStore:
 
     def get_emails_without_features(
         self,
-        limit: Optional[int] = None
-    ) -> List[Email]:
+        limit: int | None = None
+    ) -> list[Email]:
         """
         Get emails that don't have computed features.
 
@@ -268,7 +267,7 @@ class FeatureStore:
 
         return query.all()
 
-    def get_feature_stats(self) -> Dict[str, Any]:
+    def get_feature_stats(self) -> dict[str, Any]:
         """
         Get statistics about computed features.
 

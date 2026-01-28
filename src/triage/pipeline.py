@@ -1,17 +1,21 @@
 """Main email triage pipeline."""
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from ..gmail import GmailClient, GmailOperations
 from ..database import Database, EmailRepository
 from ..database.schema import Email
-from ..features import MetadataExtractor, HistoricalPatternExtractor, EmbeddingExtractor, FeatureStore
-from ..ml import EmailScorer, EmailCategorizer
+from ..features import (
+    EmbeddingExtractor,
+    FeatureStore,
+    HistoricalPatternExtractor,
+    MetadataExtractor,
+)
+from ..gmail import GmailClient, GmailOperations
+from ..ml import EmailCategorizer, EmailScorer
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -73,8 +77,8 @@ class TriagePipeline:
         self,
         days_back: int = 1,
         dry_run: bool = False,
-        max_emails: Optional[int] = None
-    ) -> Dict[str, Any]:
+        max_emails: int | None = None
+    ) -> dict[str, Any]:
         """
         Run triage on recent emails.
 
@@ -144,7 +148,7 @@ class TriagePipeline:
                 logger.error(f"Failed to process email {email.message_id}: {e}")
                 results['errors'] += 1
 
-        logger.info(f"Triage complete:")
+        logger.info("Triage complete:")
         logger.info(f"  - Total: {results['total']}")
         logger.info(f"  - High confidence keep: {results['high_keep']}")
         logger.info(f"  - High confidence archive: {results['high_archive']}")
@@ -157,7 +161,7 @@ class TriagePipeline:
         self,
         gmail_email: Any,
         dry_run: bool
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Process a single email through the pipeline.
 
@@ -227,7 +231,7 @@ class TriagePipeline:
         self,
         email: Email,
         session: Session
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Extract features for an email."""
         features = {}
 
@@ -250,8 +254,8 @@ class TriagePipeline:
     def _apply_decision(
         self,
         email: Email,
-        decision: Dict[str, Any],
-        labels: List[str],
+        decision: dict[str, Any],
+        labels: list[str],
         session: Session
     ) -> None:
         """Apply triage decision to email."""
@@ -271,7 +275,7 @@ class TriagePipeline:
 
         # Apply labels
         if labels:
-            result = self.gmail_ops.add_labels(
+            self.gmail_ops.add_labels(
                 [email.message_id],
                 labels,
                 dry_run=False
@@ -280,7 +284,7 @@ class TriagePipeline:
 
         # Archive if decided
         if decision['action'] == 'archive':
-            result = self.gmail_ops.archive(
+            self.gmail_ops.archive(
                 [email.message_id],
                 dry_run=False
             )

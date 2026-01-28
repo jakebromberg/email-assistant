@@ -1,11 +1,11 @@
 """Tests for Gmail client."""
 
-import pytest
 from unittest.mock import Mock, patch
-from datetime import datetime
 
-from src.gmail.client import GmailClient
+import pytest
+
 from src.gmail.auth import GmailAuthenticator
+from src.gmail.client import GmailClient
 
 
 class TestGmailClient:

@@ -1,13 +1,12 @@
 """Email operations for modifying Gmail messages."""
 
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 from googleapiclient.errors import HttpError
 
-from .client import GmailClient
 from ..utils import get_logger
-
+from .client import GmailClient
 
 logger = get_logger(__name__)
 
@@ -29,9 +28,9 @@ class OperationResult:
         ...     print(f"Archived {len(result.message_ids)} messages")
     """
     success: bool
-    message_ids: List[str]
+    message_ids: list[str]
     message: str
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 
 
 class GmailOperations:
@@ -62,14 +61,14 @@ class GmailOperations:
             >>> ops = GmailOperations(client)
         """
         self.client = client
-        self._label_cache: Optional[Dict[str, str]] = None
+        self._label_cache: dict[str, str] | None = None
 
     def _handle_dry_run(
         self,
         dry_run: bool,
         action_description: str,
-        message_ids: List[str]
-    ) -> Optional[OperationResult]:
+        message_ids: list[str]
+    ) -> OperationResult | None:
         """
         Handle dry-run mode for operations.
 
@@ -99,7 +98,7 @@ class GmailOperations:
 
     def mark_read(
         self,
-        message_ids: List[str],
+        message_ids: list[str],
         dry_run: bool = False
     ) -> OperationResult:
         """
@@ -127,7 +126,7 @@ class GmailOperations:
 
     def mark_unread(
         self,
-        message_ids: List[str],
+        message_ids: list[str],
         dry_run: bool = False
     ) -> OperationResult:
         """
@@ -155,7 +154,7 @@ class GmailOperations:
 
     def archive(
         self,
-        message_ids: List[str],
+        message_ids: list[str],
         dry_run: bool = False
     ) -> OperationResult:
         """
@@ -183,7 +182,7 @@ class GmailOperations:
 
     def move_to_inbox(
         self,
-        message_ids: List[str],
+        message_ids: list[str],
         dry_run: bool = False
     ) -> OperationResult:
         """
@@ -211,8 +210,8 @@ class GmailOperations:
 
     def add_labels(
         self,
-        message_ids: List[str],
-        label_names: List[str],
+        message_ids: list[str],
+        label_names: list[str],
         dry_run: bool = False
     ) -> OperationResult:
         """
@@ -249,8 +248,8 @@ class GmailOperations:
 
     def remove_labels(
         self,
-        message_ids: List[str],
-        label_names: List[str],
+        message_ids: list[str],
+        label_names: list[str],
         dry_run: bool = False
     ) -> OperationResult:
         """
@@ -295,9 +294,9 @@ class GmailOperations:
 
     def batch_modify(
         self,
-        message_ids: List[str],
-        add_label_ids: Optional[List[str]] = None,
-        remove_label_ids: Optional[List[str]] = None,
+        message_ids: list[str],
+        add_label_ids: list[str] | None = None,
+        remove_label_ids: list[str] | None = None,
         dry_run: bool = False
     ) -> OperationResult:
         """
@@ -338,7 +337,7 @@ class GmailOperations:
 
         try:
             # Build request body
-            body: Dict[str, Any] = {'ids': message_ids}
+            body: dict[str, Any] = {'ids': message_ids}
 
             if add_label_ids:
                 body['addLabelIds'] = add_label_ids
@@ -443,7 +442,7 @@ class GmailOperations:
         label_id = self.create_label(label_name)
         return label_id
 
-    def _get_label_map(self) -> Dict[str, str]:
+    def _get_label_map(self) -> dict[str, str]:
         """
         Get mapping of label names to IDs.
 
@@ -463,7 +462,7 @@ class GmailOperations:
 
         return self._label_cache
 
-    def get_label_id(self, label_name: str) -> Optional[str]:
+    def get_label_id(self, label_name: str) -> str | None:
         """
         Get label ID by name (returns None if doesn't exist).
 

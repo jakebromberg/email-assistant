@@ -1,17 +1,20 @@
 """Model evaluation and metrics."""
 
-from typing import Dict, Any, List, Tuple, Optional
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from sklearn.metrics import (
-    roc_auc_score, precision_score, recall_score,
-    confusion_matrix, roc_curve, precision_recall_curve
+    confusion_matrix,
+    precision_recall_curve,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+    roc_curve,
 )
 
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -35,10 +38,10 @@ class ModelEvaluator:
 
     def evaluate(
         self,
-        y_true: List[int],
-        y_pred_proba: List[float],
+        y_true: list[int],
+        y_pred_proba: list[float],
         threshold: float = 0.5
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluate model predictions.
 
@@ -85,7 +88,7 @@ class ModelEvaluator:
         # False positive rate (for archive decision)
         metrics['false_positive_rate'] = fp / (fp + tn) if (fp + tn) > 0 else 0
 
-        logger.info(f"Evaluation metrics:")
+        logger.info("Evaluation metrics:")
         logger.info(f"  - AUC: {metrics['auc']:.3f}")
         logger.info(f"  - Precision: {metrics['precision']:.3f}")
         logger.info(f"  - Recall: {metrics['recall']:.3f}")
@@ -95,10 +98,10 @@ class ModelEvaluator:
 
     def analyze_thresholds(
         self,
-        y_true: List[int],
-        y_pred_proba: List[float],
-        thresholds: Optional[List[float]] = None
-    ) -> List[Dict[str, Any]]:
+        y_true: list[int],
+        y_pred_proba: list[float],
+        thresholds: list[float] | None = None
+    ) -> list[dict[str, Any]]:
         """
         Analyze performance at different thresholds.
 
@@ -128,11 +131,11 @@ class ModelEvaluator:
 
     def find_optimal_threshold(
         self,
-        y_true: List[int],
-        y_pred_proba: List[float],
+        y_true: list[int],
+        y_pred_proba: list[float],
         optimize_for: str = 'f1',
-        min_precision: Optional[float] = None
-    ) -> Tuple[float, Dict[str, Any]]:
+        min_precision: float | None = None
+    ) -> tuple[float, dict[str, Any]]:
         """
         Find optimal classification threshold.
 
@@ -175,10 +178,10 @@ class ModelEvaluator:
 
     def evaluate_archive_precision(
         self,
-        y_true: List[int],
-        y_pred_proba: List[float],
+        y_true: list[int],
+        y_pred_proba: list[float],
         archive_threshold: float = 0.3
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluate precision for archive decisions.
 
@@ -239,7 +242,7 @@ class ModelEvaluator:
 
     def save_metrics(
         self,
-        metrics: Dict[str, Any],
+        metrics: dict[str, Any],
         output_path: str
     ) -> None:
         """
@@ -275,7 +278,7 @@ class ModelEvaluator:
 
         logger.info(f"Metrics saved to {output_path}")
 
-    def load_metrics(self, metrics_path: str) -> Dict[str, Any]:
+    def load_metrics(self, metrics_path: str) -> dict[str, Any]:
         """
         Load metrics from JSON file.
 
@@ -288,7 +291,7 @@ class ModelEvaluator:
         Example:
             >>> metrics = evaluator.load_metrics("models/metrics_v20240101.json")
         """
-        with open(metrics_path, 'r') as f:
+        with open(metrics_path) as f:
             metrics = json.load(f)
 
         logger.info(f"Metrics loaded from {metrics_path}")
@@ -296,9 +299,9 @@ class ModelEvaluator:
 
     def get_roc_curve_data(
         self,
-        y_true: List[int],
-        y_pred_proba: List[float]
-    ) -> Tuple[List[float], List[float], List[float]]:
+        y_true: list[int],
+        y_pred_proba: list[float]
+    ) -> tuple[list[float], list[float], list[float]]:
         """
         Get ROC curve data for plotting.
 
@@ -317,9 +320,9 @@ class ModelEvaluator:
 
     def get_precision_recall_curve_data(
         self,
-        y_true: List[int],
-        y_pred_proba: List[float]
-    ) -> Tuple[List[float], List[float], List[float]]:
+        y_true: list[int],
+        y_pred_proba: list[float]
+    ) -> tuple[list[float], list[float], list[float]]:
         """
         Get precision-recall curve data for plotting.
 

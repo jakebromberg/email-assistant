@@ -2,11 +2,10 @@
 
 import hashlib
 import re
-from typing import Dict, Any
+from typing import Any
 
 from ..database.schema import Email
 from ..utils import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -47,7 +46,7 @@ class MetadataExtractor:
         """Initialize metadata extractor."""
         pass
 
-    def extract(self, email: Email) -> Dict[str, Any]:
+    def extract(self, email: Email) -> dict[str, Any]:
         """
         Extract metadata features from an email.
 
@@ -84,7 +83,7 @@ class MetadataExtractor:
 
         return features
 
-    def extract_batch(self, emails: list[Email]) -> list[Dict[str, Any]]:
+    def extract_batch(self, emails: list[Email]) -> list[dict[str, Any]]:
         """
         Extract metadata features from multiple emails.
 

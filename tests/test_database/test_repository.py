@@ -1,11 +1,12 @@
 """Tests for email repository."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock
 
-from src.database.schema import Email, EmailAction, FeedbackReview
+import pytest
+
 from src.database.repository import EmailRepository
+from src.database.schema import Email, EmailAction, FeedbackReview
 from src.gmail.models import Email as GmailEmail
 
 
@@ -83,7 +84,7 @@ class TestEmailRepository:
         mock_session.add.assert_called_once()
         assert isinstance(feedback, FeedbackReview)
         assert feedback.message_id == "test123"
-        assert feedback.decision_correct == False
+        assert feedback.decision_correct is False
         assert feedback.user_comment == "Important email"
 
     # TODO: Add more tests for:

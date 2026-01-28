@@ -1,8 +1,8 @@
 """Database models and access layer."""
 
 from .database import Database
-from .schema import Email, EmailLabel, EmailAction, FeedbackReview, EmailFeatures
 from .repository import EmailRepository
+from .schema import Email, EmailAction, EmailFeatures, EmailLabel, FeedbackReview
 
 __all__ = [
     "Database",
