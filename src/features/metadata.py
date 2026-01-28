@@ -3,7 +3,6 @@
 import hashlib
 import re
 from typing import Dict, Any
-from datetime import datetime
 
 from ..database.schema import Email
 from ..utils import get_logger

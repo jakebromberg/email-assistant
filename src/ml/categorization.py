@@ -1,8 +1,5 @@
 """Email categorization for automatic labeling."""
 
-import re
-from typing import Optional
-
 from ..database.schema import Email
 from ..utils import get_logger
 

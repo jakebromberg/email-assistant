@@ -1,11 +1,10 @@
 """Email data models for parsing Gmail API responses."""
 
 import base64
-import email
 from dataclasses import dataclass
 from datetime import datetime
 from email.header import decode_header
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 
 
 @dataclass

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..gmail import GmailClient, GmailOperations
 from ..database import Database, EmailRepository
-from ..database.schema import Email, EmailFeatures
+from ..database.schema import Email
 from ..features import MetadataExtractor, HistoricalPatternExtractor, EmbeddingExtractor, FeatureStore
 from ..ml import EmailScorer, EmailCategorizer
 from ..utils import get_logger

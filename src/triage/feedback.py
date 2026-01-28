@@ -1,13 +1,13 @@
 """Feedback collection from user actions and labels."""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 from ..gmail import GmailClient
 from ..database import EmailRepository
-from ..database.schema import Email, EmailAction
+from ..database.schema import EmailAction
 from ..utils import get_logger
 
 
@@ -153,7 +153,7 @@ class FeedbackCollector:
 
         # Get unused feedback reviews
         reviews = session.query(FeedbackReview).filter(
-            FeedbackReview.used_in_training == False
+            FeedbackReview.used_in_training.is_(False)
         ).all()
 
         feedback_data = []

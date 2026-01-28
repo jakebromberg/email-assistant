@@ -295,7 +295,7 @@ class FeatureStore:
 
         # Newsletter count
         newsletter_count = self.session.query(EmailFeatures).filter(
-            EmailFeatures.is_newsletter == True
+            EmailFeatures.is_newsletter.is_(True)
         ).count()
 
         return {

@@ -1,7 +1,7 @@
 """Historical pattern feature extraction."""
 
 from typing import Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 

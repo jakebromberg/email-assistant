@@ -1,13 +1,11 @@
 """Model training for email importance prediction."""
 
 import json
-import joblib
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, precision_score, recall_score
 import lightgbm as lgb

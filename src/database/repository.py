@@ -3,10 +3,10 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
-from sqlalchemy import desc, func
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from .schema import Email, EmailLabel, EmailAction, FeedbackReview
+from .schema import Email, EmailAction, FeedbackReview
 from ..gmail.models import Email as GmailEmail
 from ..utils import get_logger
 
@@ -224,7 +224,7 @@ class EmailRepository:
             >>> unread = repo.get_unread(limit=50)
         """
         query = self.session.query(Email).filter(
-            Email.was_read == False
+            Email.was_read.is_(False)
         ).order_by(desc(Email.date))
 
         if limit:

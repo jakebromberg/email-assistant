@@ -1,7 +1,6 @@
 """Database connection and session management."""
 
 from pathlib import Path
-from typing import Optional
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine, event, text

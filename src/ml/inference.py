@@ -4,7 +4,6 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
 import lightgbm as lgb
 
 from ..database.schema import Email, EmailFeatures

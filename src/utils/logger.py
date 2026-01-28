@@ -1,10 +1,8 @@
 """Centralized logging configuration with file rotation."""
 
 import logging
-import os
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import Optional
 
 
 _loggers: dict[str, logging.Logger] = {}

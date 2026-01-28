@@ -1,8 +1,7 @@
 """SQLAlchemy database schema for email storage."""
 
 from datetime import datetime
-from typing import Optional, List
-import json
+from typing import List
 
 from sqlalchemy import (
     Column, String, DateTime, Boolean, Integer, Float, Text, ForeignKey, JSON
