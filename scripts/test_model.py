@@ -80,11 +80,10 @@ def main():
     logger.info(f"Opening database: {db_path}\n")
     db = Database(db_path)
 
-    # Initialize scorer and categorizer
+    # Initialize scorer
     logger.info("Loading model...")
     try:
         scorer = EmailScorer(args.model)
-        categorizer = EmailCategorizer()
         logger.info("Model loaded successfully\n")
     except Exception as e:
         logger.error(f"Failed to load model: {e}")
@@ -95,6 +94,7 @@ def main():
     with db.get_session() as session:
         store = FeatureStore(session)
         repo = EmailRepository(session)
+        categorizer = EmailCategorizer(session)
 
         # Get emails with features
         all_features = store.get_all_features(limit=args.limit * 2)

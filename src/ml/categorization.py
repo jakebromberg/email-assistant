@@ -1,6 +1,8 @@
 """Email categorization for automatic labeling."""
 
-from ..database.schema import Email
+from sqlalchemy.orm import Session
+
+from ..database.schema import Email, SenderLabelMapping
 from ..utils import get_logger
 
 logger = get_logger(__name__)
@@ -14,9 +16,10 @@ class EmailCategorizer:
     etc. based on email content and metadata.
 
     Example:
-        >>> categorizer = EmailCategorizer()
-        >>> label = categorizer.categorize(email)
-        >>> print(f"Category: {label}")
+        >>> with db.get_session() as session:
+        ...     categorizer = EmailCategorizer(session)
+        ...     label = categorizer.categorize(email)
+        ...     print(f"Category: {label}")
     """
 
     # Newsletter categories
@@ -83,9 +86,14 @@ class EmailCategorizer:
         'shipped', 'delivery', 'tracking'
     ]
 
-    def __init__(self):
-        """Initialize categorizer."""
-        pass
+    def __init__(self, session: Session):
+        """
+        Initialize categorizer.
+
+        Args:
+            session: Database session for learned label lookups
+        """
+        self.session = session
 
     def categorize(
         self,
@@ -94,6 +102,9 @@ class EmailCategorizer:
     ) -> str:
         """
         Categorize an email and return appropriate label.
+
+        First checks for learned sender-label mappings from user feedback,
+        then falls back to keyword-based rules.
 
         Args:
             email: Email database model
@@ -105,6 +116,12 @@ class EmailCategorizer:
         Example:
             >>> label = categorizer.categorize(email, is_newsletter=True)
         """
+        # Check for learned sender label first
+        learned_label = self._get_learned_label(email.from_address)
+        if learned_label:
+            logger.debug(f"Using learned label for {email.from_address}: {learned_label}")
+            return learned_label
+
         # Combine subject and snippet for analysis
         text = f"{email.subject or ''} {email.snippet or ''}".lower()
 
@@ -137,6 +154,39 @@ class EmailCategorizer:
 
         # Default to personal
         return self.PERSONAL
+
+    def _get_learned_label(self, sender_address: str) -> str | None:
+        """
+        Get learned label for a sender from feedback mappings.
+
+        Args:
+            sender_address: Sender email address
+
+        Returns:
+            Label if found, None otherwise
+        """
+        if not sender_address:
+            return None
+
+        # Check for exact address match
+        mapping = self.session.query(SenderLabelMapping).filter(
+            SenderLabelMapping.sender_address == sender_address
+        ).first()
+
+        if mapping:
+            return mapping.label
+
+        # Check for domain match
+        domain = sender_address.split('@')[-1] if '@' in sender_address else None
+        if domain:
+            mapping = self.session.query(SenderLabelMapping).filter(
+                SenderLabelMapping.sender_domain == domain,
+                SenderLabelMapping.sender_address.is_(None)
+            ).first()
+            if mapping:
+                return mapping.label
+
+        return None
 
     def _contains_any(self, text: str, keywords: list[str]) -> bool:
         """
@@ -242,17 +292,22 @@ class EmailCategorizer:
         return labels
 
     @staticmethod
-    def get_all_categories() -> list[str]:
+    def get_all_categories(session: Session | None = None) -> list[str]:
         """
         Get list of all possible category labels.
+
+        Includes built-in categories plus any custom labels from user feedback.
+
+        Args:
+            session: Database session to fetch custom labels (optional for built-in only)
 
         Returns:
             List of category labels
 
         Example:
-            >>> categories = EmailCategorizer.get_all_categories()
+            >>> categories = EmailCategorizer.get_all_categories(session)
         """
-        return [
+        built_in = [
             EmailCategorizer.NEWSLETTER_TECH,
             EmailCategorizer.NEWSLETTER_FINANCE,
             EmailCategorizer.NEWSLETTER_NEWS,
@@ -265,3 +320,11 @@ class EmailCategorizer:
             EmailCategorizer.LOW_CONFIDENCE,
             EmailCategorizer.AUTO_ARCHIVED,
         ]
+
+        if session:
+            # Add custom labels from user feedback
+            custom = session.query(SenderLabelMapping.label).distinct().all()
+            custom_labels = [c[0] for c in custom if c[0] not in built_in]
+            return built_in + custom_labels
+
+        return built_in

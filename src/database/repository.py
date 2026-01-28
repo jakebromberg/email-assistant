@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..gmail.models import Email as GmailEmail
 from ..utils import get_logger
-from .schema import Email, EmailAction, FeedbackReview
+from .schema import Email, EmailAction, FeedbackReview, SenderLabelMapping
 
 logger = get_logger(__name__)
 
@@ -419,3 +419,112 @@ class EmailRepository:
             'archived_count': archived_count,
             'archive_rate': archived_count / total,
         }
+
+    def save_sender_label_mapping(
+        self,
+        label: str,
+        sender_address: str | None = None,
+        sender_domain: str | None = None,
+        source: str = 'feedback'
+    ) -> SenderLabelMapping:
+        """
+        Save a sender-to-label mapping.
+
+        Args:
+            label: The label to apply to emails from this sender
+            sender_address: Full sender email address (for exact match)
+            sender_domain: Sender's domain (for domain-level mapping)
+            source: How this mapping was learned ('feedback', 'manual')
+
+        Returns:
+            Created or updated SenderLabelMapping
+
+        Example:
+            >>> repo.save_sender_label_mapping(
+            ...     label="Bot/Newsletter-Tech",
+            ...     sender_address="newsletter@techsite.com"
+            ... )
+        """
+        if not sender_address and not sender_domain:
+            raise ValueError("Must provide sender_address or sender_domain")
+
+        # Check for existing mapping
+        query = self.session.query(SenderLabelMapping)
+        if sender_address:
+            existing = query.filter(
+                SenderLabelMapping.sender_address == sender_address
+            ).first()
+        else:
+            existing = query.filter(
+                SenderLabelMapping.sender_domain == sender_domain,
+                SenderLabelMapping.sender_address.is_(None)
+            ).first()
+
+        if existing:
+            # Update existing mapping
+            existing.label = label
+            existing.source = source
+            logger.debug(f"Updated sender label mapping: {sender_address or sender_domain} -> {label}")
+            return existing
+
+        # Create new mapping
+        mapping = SenderLabelMapping(
+            sender_address=sender_address,
+            sender_domain=sender_domain,
+            label=label,
+            source=source
+        )
+        self.session.add(mapping)
+        logger.debug(f"Created sender label mapping: {sender_address or sender_domain} -> {label}")
+        return mapping
+
+    def get_sender_label(self, sender_address: str) -> str | None:
+        """
+        Get the learned label for a sender.
+
+        Checks for exact address match first, then domain match.
+
+        Args:
+            sender_address: Full sender email address
+
+        Returns:
+            Label string if found, None otherwise
+
+        Example:
+            >>> label = repo.get_sender_label("newsletter@techsite.com")
+            >>> if label:
+            ...     print(f"Use label: {label}")
+        """
+        # Check for exact address match first
+        mapping = self.session.query(SenderLabelMapping).filter(
+            SenderLabelMapping.sender_address == sender_address
+        ).first()
+
+        if mapping:
+            return mapping.label
+
+        # Check for domain match
+        domain = sender_address.split('@')[-1] if '@' in sender_address else None
+        if domain:
+            mapping = self.session.query(SenderLabelMapping).filter(
+                SenderLabelMapping.sender_domain == domain,
+                SenderLabelMapping.sender_address.is_(None)
+            ).first()
+            if mapping:
+                return mapping.label
+
+        return None
+
+    def get_all_custom_labels(self) -> list[str]:
+        """
+        Get all unique custom labels from sender mappings.
+
+        Returns:
+            List of unique label strings
+
+        Example:
+            >>> labels = repo.get_all_custom_labels()
+            >>> print(labels)  # ['Bot/Newsletter-Tech', 'Bot/MyCustomLabel']
+        """
+        mappings = self.session.query(SenderLabelMapping.label).distinct().all()
+        return [m[0] for m in mappings]

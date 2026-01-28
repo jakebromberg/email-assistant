@@ -173,6 +173,15 @@ def main():
                                 }
                             )
 
+                            # Save sender-label mapping for future categorization
+                            # Use the primary (first) label for the mapping
+                            primary_label = correct_labels[0]
+                            repo.save_sender_label_mapping(
+                                label=primary_label,
+                                sender_address=email.from_address
+                            )
+                            logger.info(f"  → Learned: {email.from_address} -> {primary_label}")
+
                 if not args.dry_run:
                     session.commit()
 

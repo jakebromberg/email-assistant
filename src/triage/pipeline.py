@@ -64,7 +64,6 @@ class TriagePipeline:
         self.gmail_ops = gmail_ops
         self.database = database
         self.scorer = EmailScorer(model_path)
-        self.categorizer = EmailCategorizer()
         self.use_embeddings = use_embeddings
 
         # Initialize extractors
@@ -175,6 +174,7 @@ class TriagePipeline:
         with self.database.get_session() as session:
             repo = EmailRepository(session)
             store = FeatureStore(session)
+            categorizer = EmailCategorizer(session)
 
             # Save email to database
             db_email = repo.save_email(gmail_email)
@@ -191,20 +191,20 @@ class TriagePipeline:
             # Make decision
             decision_info = self.scorer.make_decision(score)
 
-            # Categorize
-            category = self.categorizer.categorize(
+            # Categorize (uses learned sender labels from feedback)
+            category = categorizer.categorize(
                 db_email,
                 is_newsletter=features.get('is_newsletter', False)
             )
 
             # Determine labels to apply
-            labels = self.categorizer.add_confidence_label(
+            labels = categorizer.add_confidence_label(
                 category,
                 decision_info['confidence']
             )
 
             if decision_info['action'] == 'archive':
-                labels = self.categorizer.add_action_label(labels, 'archive')
+                labels = categorizer.add_action_label(labels, 'archive')
 
             # Apply decision
             if not dry_run:

@@ -201,6 +201,39 @@ class FeedbackReview(Base):
         )
 
 
+class SenderLabelMapping(Base):
+    """
+    Learned sender-to-label mappings from user feedback.
+
+    When a user corrects a label during review, we store the mapping
+    so future emails from the same sender get the correct label.
+
+    Attributes:
+        id: Primary key
+        sender_address: Full sender email address
+        sender_domain: Sender's domain (for domain-level mappings)
+        label: The correct label for this sender
+        source: How this mapping was learned ('feedback', 'manual')
+        created_at: When mapping was created
+        updated_at: When mapping was last updated
+    """
+
+    __tablename__ = 'sender_label_mappings'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sender_address = Column(String, index=True, nullable=True)
+    sender_domain = Column(String, index=True, nullable=True)
+    label = Column(String, nullable=False)
+    source = Column(String, default='feedback')
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        sender = self.sender_address or self.sender_domain
+        return f"<SenderLabelMapping({sender} -> {self.label})>"
+
+
 class EmailFeatures(Base):
     """
     Computed features for an email.

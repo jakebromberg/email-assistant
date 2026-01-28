@@ -192,10 +192,9 @@ def main():
     corrected_count = 0
     feedback_history = []  # Track feedback for undo functionality
 
-    categorizer = EmailCategorizer()
-
     with db.get_session() as session:
         repo = EmailRepository(session)
+        categorizer = EmailCategorizer(session)
 
         email_index = 0
         while email_index < len(action_data_list):
@@ -328,7 +327,7 @@ def main():
 
                     # Handle wrong label (choice 2)
                     if '2' in choices:
-                        categories = categorizer.get_all_categories()
+                        categories = categorizer.get_all_categories(session)
                         print(colored("\nAvailable categories:", Colors.BOLD))
                         for idx, cat in enumerate(categories, 1):
                             print(f"{colored(str(idx) + '.', Colors.CYAN)} {cat}")
