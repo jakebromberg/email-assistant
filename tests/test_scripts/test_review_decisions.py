@@ -136,6 +136,149 @@ class TestReviewDecisionsSessionManagement:
                 assert 'confidence' in action_data['action_data']
 
 
+class TestReviewDecisionsExcludesReviewedEmails:
+    """Test that already-reviewed emails are excluded from the review list."""
+
+    def test_excludes_emails_with_existing_feedback(self, temp_db, email_factory, action_factory):
+        """Test that emails already reviewed are not shown again."""
+        from src.database.repository import EmailRepository
+
+        # Create two emails with bot actions
+        for i in range(2):
+            email_factory(
+                message_id=f"test{i}",
+                from_address=f"sender{i}@example.com",
+                subject=f"Test Email {i}",
+                date=datetime.now() - timedelta(hours=i+1)
+            )
+            action_factory(
+                message_id=f"test{i}",
+                action_type="archive",
+                action_data={'score': 0.2, 'confidence': 'high'}
+            )
+
+        # Add feedback for first email only
+        with temp_db.get_session() as session:
+            repo = EmailRepository(session)
+            repo.save_feedback(
+                message_id="test0",
+                decision_correct=True,
+                label_correct=True
+            )
+            session.commit()
+
+        # Query actions excluding reviewed emails (simulating the script)
+        action_data_list = []
+        start_date = datetime.now() - timedelta(days=1)
+
+        with temp_db.get_session() as session:
+            # Get message_ids that already have feedback
+            reviewed_ids = session.query(FeedbackReview.message_id).scalar_subquery()
+
+            # Query bot actions, excluding already reviewed emails
+            actions = session.query(EmailAction).filter(
+                EmailAction.source == 'bot',
+                EmailAction.timestamp >= start_date,
+                ~EmailAction.message_id.in_(reviewed_ids)
+            ).all()
+
+            for action in actions:
+                action_data_list.append({
+                    'message_id': action.message_id,
+                    'action_type': action.action_type,
+                })
+
+        # Should only have the unreviewed email
+        assert len(action_data_list) == 1
+        assert action_data_list[0]['message_id'] == "test1"
+
+    def test_includes_all_emails_when_none_reviewed(self, temp_db, email_factory, action_factory):
+        """Test that all emails are shown when none have been reviewed."""
+        # Create three emails with bot actions
+        for i in range(3):
+            email_factory(
+                message_id=f"test{i}",
+                from_address=f"sender{i}@example.com",
+                subject=f"Test Email {i}",
+                date=datetime.now() - timedelta(hours=i+1)
+            )
+            action_factory(
+                message_id=f"test{i}",
+                action_type="archive",
+                action_data={'score': 0.2, 'confidence': 'high'}
+            )
+
+        # Query actions excluding reviewed emails (none exist)
+        action_data_list = []
+        start_date = datetime.now() - timedelta(days=1)
+
+        with temp_db.get_session() as session:
+            reviewed_ids = session.query(FeedbackReview.message_id).scalar_subquery()
+
+            actions = session.query(EmailAction).filter(
+                EmailAction.source == 'bot',
+                EmailAction.timestamp >= start_date,
+                ~EmailAction.message_id.in_(reviewed_ids)
+            ).all()
+
+            for action in actions:
+                action_data_list.append({
+                    'message_id': action.message_id,
+                })
+
+        # Should have all three emails
+        assert len(action_data_list) == 3
+
+    def test_excludes_all_when_all_reviewed(self, temp_db, email_factory, action_factory):
+        """Test that no emails are shown when all have been reviewed."""
+        from src.database.repository import EmailRepository
+
+        # Create two emails with bot actions
+        for i in range(2):
+            email_factory(
+                message_id=f"test{i}",
+                from_address=f"sender{i}@example.com",
+                subject=f"Test Email {i}",
+                date=datetime.now() - timedelta(hours=i+1)
+            )
+            action_factory(
+                message_id=f"test{i}",
+                action_type="archive",
+                action_data={'score': 0.2, 'confidence': 'high'}
+            )
+
+        # Add feedback for both emails
+        with temp_db.get_session() as session:
+            repo = EmailRepository(session)
+            for i in range(2):
+                repo.save_feedback(
+                    message_id=f"test{i}",
+                    decision_correct=True
+                )
+            session.commit()
+
+        # Query actions excluding reviewed emails
+        action_data_list = []
+        start_date = datetime.now() - timedelta(days=1)
+
+        with temp_db.get_session() as session:
+            reviewed_ids = session.query(FeedbackReview.message_id).scalar_subquery()
+
+            actions = session.query(EmailAction).filter(
+                EmailAction.source == 'bot',
+                EmailAction.timestamp >= start_date,
+                ~EmailAction.message_id.in_(reviewed_ids)
+            ).all()
+
+            for action in actions:
+                action_data_list.append({
+                    'message_id': action.message_id,
+                })
+
+        # Should have no emails
+        assert len(action_data_list) == 0
+
+
 class TestReviewDecisionsConfidenceSorting:
     """Test confidence-based sorting of bot decisions."""
 

@@ -137,10 +137,14 @@ def main():
     action_data_list = []
 
     with db.get_session() as session:
-        # Query bot actions
+        # Get message_ids that already have feedback
+        reviewed_ids = session.query(FeedbackReview.message_id).scalar_subquery()
+
+        # Query bot actions, excluding already reviewed emails
         query = session.query(EmailAction).filter(
             EmailAction.source == 'bot',
-            EmailAction.timestamp >= start_date
+            EmailAction.timestamp >= start_date,
+            ~EmailAction.message_id.in_(reviewed_ids)
         )
 
         # Apply filter
