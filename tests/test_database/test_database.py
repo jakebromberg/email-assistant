@@ -138,3 +138,67 @@ class TestDatabase:
             with temp_db.get_session() as session2:
                 count = session2.query(Email).count()
                 assert count == 1
+
+    def test_drop_tables(self, tmp_path):
+        """Test dropping all tables."""
+        db_path = tmp_path / "drop_test.db"
+        db = Database(str(db_path))
+        db.create_tables()
+
+        # Verify tables exist
+        with db.get_session() as session:
+            result = session.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+            tables = [row[0] for row in result]
+            assert 'emails' in tables
+
+        # Drop tables
+        db.drop_tables()
+
+        # Verify tables are gone
+        with db.get_session() as session:
+            result = session.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+            tables = [row[0] for row in result]
+            assert 'emails' not in tables
+
+    def test_get_stats(self, temp_db, email_factory, action_factory):
+        """Test getting database statistics."""
+        # Add some data
+        email1 = email_factory(message_id="stats1")
+        email2 = email_factory(message_id="stats2")
+        action_factory(message_id=email1.message_id)
+
+        stats = temp_db.get_stats()
+
+        assert stats['emails'] >= 2
+        assert stats['actions'] >= 1
+        assert 'email_labels' in stats
+        assert 'feedback_reviews' in stats
+
+    def test_get_stats_empty(self, tmp_path):
+        """Test getting stats on empty database."""
+        db_path = tmp_path / "empty_stats.db"
+        db = Database(str(db_path))
+        db.create_tables()
+
+        stats = db.get_stats()
+
+        assert stats['emails'] == 0
+        assert stats['actions'] == 0
+
+    def test_get_session_raw(self, temp_db):
+        """Test getting raw session."""
+        session = temp_db.get_session_raw()
+        try:
+            assert session is not None
+            result = session.execute(text("SELECT 1")).scalar()
+            assert result == 1
+            session.commit()
+        finally:
+            session.close()
+
+    def test_repr(self, temp_db):
+        """Test database string representation."""
+        repr_str = repr(temp_db)
+
+        assert 'Database' in repr_str
+        assert 'path=' in repr_str

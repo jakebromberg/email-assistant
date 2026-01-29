@@ -1,1 +1,1 @@
-"""Tests for feature extraction modules."""
+"""Tests for feature engineering modules."""

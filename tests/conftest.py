@@ -256,6 +256,69 @@ def features_factory(temp_db_session: Session):
 
 
 # ============================================================================
+# Gmail Email Factory
+# ============================================================================
+
+@pytest.fixture
+def gmail_email_factory():
+    """
+    Factory for creating Gmail Email objects (from API).
+
+    Usage:
+        def test_something(gmail_email_factory):
+            email = gmail_email_factory(subject="Test", from_address="test@example.com")
+    """
+    from src.gmail.models import Email as GmailEmail
+
+    def _create_gmail_email(
+        message_id: str = None,
+        thread_id: str = None,
+        from_address: str = "sender@example.com",
+        from_name: str = "Test Sender",
+        to_address: str = "me@example.com",
+        subject: str = "Test Email",
+        date: datetime = None,
+        snippet: str = "Test snippet",
+        labels: list[str] = None,
+        body_plain: str = "Test body",
+        body_html: str = "<p>Test body</p>",
+        headers: dict = None,
+        **kwargs
+    ) -> GmailEmail:
+        """Create a Gmail Email object with sensible defaults."""
+        import uuid
+
+        if message_id is None:
+            message_id = f"gmail_{uuid.uuid4().hex[:8]}"
+        if thread_id is None:
+            thread_id = f"thread_{message_id}"
+        if date is None:
+            date = datetime.now()
+        if labels is None:
+            labels = ["INBOX", "UNREAD"]
+        if headers is None:
+            headers = {}
+
+        return GmailEmail(
+            message_id=message_id,
+            thread_id=thread_id,
+            from_address=from_address,
+            from_name=from_name,
+            to_address=to_address,
+            subject=subject,
+            date=date,
+            snippet=snippet,
+            labels=labels,
+            body_plain=body_plain,
+            body_html=body_html,
+            headers=headers,
+            **kwargs
+        )
+
+    return _create_gmail_email
+
+
+# ============================================================================
 # Gmail Mock Fixtures
 # ============================================================================
 
