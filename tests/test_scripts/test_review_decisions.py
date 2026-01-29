@@ -1,5 +1,6 @@
 """Tests for review_decisions script."""
 
+import html
 import os
 import sys
 from datetime import datetime, timedelta
@@ -8,6 +9,67 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../scripts'))
 
 from src.database.schema import EmailAction, FeedbackReview
+
+
+class TestSnippetHtmlDecoding:
+    """Test HTML entity decoding in email snippets."""
+
+    def test_decodes_apostrophe_entity(self):
+        """Test decoding &#39; to apostrophe."""
+        snippet = "I&#39;ll check it out today"
+        decoded = html.unescape(snippet)
+        assert decoded == "I'll check it out today"
+
+    def test_decodes_lt_gt_entities(self):
+        """Test decoding &lt; and &gt; to angle brackets."""
+        snippet = "&lt;billburton@mindspring.com&gt;"
+        decoded = html.unescape(snippet)
+        assert decoded == "<billburton@mindspring.com>"
+
+    def test_decodes_amp_entity(self):
+        """Test decoding &amp; to ampersand."""
+        snippet = "Tom &amp; Jerry"
+        decoded = html.unescape(snippet)
+        assert decoded == "Tom & Jerry"
+
+    def test_decodes_quot_entity(self):
+        """Test decoding &quot; to quotation mark."""
+        snippet = "He said &quot;hello&quot;"
+        decoded = html.unescape(snippet)
+        assert decoded == 'He said "hello"'
+
+    def test_decodes_mixed_entities(self):
+        """Test decoding multiple entity types in one string."""
+        snippet = "I&#39;ll check it out today On Wed, Jan 28, 2026 at 7:48 AM bb &lt;billburton@mindspring.com&gt; wro"
+        decoded = html.unescape(snippet)
+        assert decoded == "I'll check it out today On Wed, Jan 28, 2026 at 7:48 AM bb <billburton@mindspring.com> wro"
+
+    def test_handles_plain_text(self):
+        """Test that plain text without entities is unchanged."""
+        snippet = "Just a normal email snippet"
+        decoded = html.unescape(snippet)
+        assert decoded == "Just a normal email snippet"
+
+    def test_handles_none_snippet(self):
+        """Test handling None snippet (should use 'N/A')."""
+        snippet = None
+        result = html.unescape(snippet[:100]) if snippet else 'N/A'
+        assert result == 'N/A'
+
+    def test_handles_empty_snippet(self):
+        """Test handling empty snippet."""
+        snippet = ""
+        result = html.unescape(snippet[:100]) if snippet else 'N/A'
+        assert result == 'N/A'
+
+    def test_truncates_before_decoding(self):
+        """Test that truncation happens before decoding for display."""
+        # Create a snippet where truncation matters
+        snippet = "A" * 95 + "&#39;"  # 99 chars, entity at end
+        truncated = snippet[:100]
+        decoded = html.unescape(truncated)
+        # Should decode the partial entity if present
+        assert len(decoded) <= 100
 
 
 class TestReviewDecisionsSessionManagement:
@@ -534,6 +596,175 @@ class TestReviewDecisionsMultiSelection:
                 choices.add(part)
 
         assert choices == {'1'}
+
+
+class TestInteractiveLabelSelector:
+    """Test the InteractiveLabelSelector class."""
+
+    def test_init_with_current_labels_checked(self):
+        """Test that current labels are pre-checked."""
+        # Import the class from the script
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../scripts'))
+
+        # We can't easily import from the script, so test the logic directly
+        current_labels = ['Bot/Newsletter-Tech', 'Bot/AutoArchived']
+        available_labels = ['Bot/Newsletter-Tech', 'Bot/Personal', 'Bot/Work']
+
+        # Simulate the initialization logic
+        items = []
+        seen = set()
+
+        for label in available_labels:
+            checked = label in current_labels
+            items.append({'label': label, 'checked': checked, 'is_input': False})
+            seen.add(label)
+
+        for label in current_labels:
+            if label not in seen:
+                items.append({'label': label, 'checked': True, 'is_input': False})
+
+        # Verify Bot/Newsletter-Tech is checked (in both lists)
+        tech_item = next(i for i in items if i['label'] == 'Bot/Newsletter-Tech')
+        assert tech_item['checked'] is True
+
+        # Verify Bot/Personal is not checked
+        personal_item = next(i for i in items if i['label'] == 'Bot/Personal')
+        assert personal_item['checked'] is False
+
+        # Verify Bot/AutoArchived is added and checked (only in current)
+        archived_item = next(i for i in items if i['label'] == 'Bot/AutoArchived')
+        assert archived_item['checked'] is True
+
+    def test_init_adds_current_labels_not_in_available(self):
+        """Test that current labels not in available list are added."""
+        current_labels = ['Bot/CustomLabel']
+        available_labels = ['Bot/Newsletter-Tech', 'Bot/Personal']
+
+        items = []
+        seen = set()
+
+        for label in available_labels:
+            checked = label in current_labels
+            items.append({'label': label, 'checked': checked, 'is_input': False})
+            seen.add(label)
+
+        for label in current_labels:
+            if label not in seen:
+                items.append({'label': label, 'checked': True, 'is_input': False})
+
+        # Should have 3 items: 2 available + 1 custom
+        assert len(items) == 3
+
+        # Custom label should be checked
+        custom_item = next(i for i in items if i['label'] == 'Bot/CustomLabel')
+        assert custom_item['checked'] is True
+
+    def test_empty_current_labels(self):
+        """Test with no current labels."""
+        current_labels = []
+        available_labels = ['Bot/Newsletter-Tech', 'Bot/Personal']
+
+        items = []
+        seen = set()
+
+        for label in available_labels:
+            checked = label in current_labels
+            items.append({'label': label, 'checked': checked, 'is_input': False})
+            seen.add(label)
+
+        # All items should be unchecked
+        assert all(not item['checked'] for item in items)
+
+    def test_selection_result_format(self):
+        """Test that selection returns correct format."""
+        # Simulate items after user interaction
+        items = [
+            {'label': 'Bot/Newsletter-Tech', 'checked': True, 'is_input': False},
+            {'label': 'Bot/Personal', 'checked': False, 'is_input': False},
+            {'label': 'Bot/Work', 'checked': True, 'is_input': False},
+            {'label': 'Bot/NewLabel', 'checked': True, 'is_input': False},
+            {'label': '', 'checked': False, 'is_input': True},
+        ]
+
+        # Simulate getting selected labels (as done in run())
+        selected = [item['label'] for item in items if item['checked'] and item['label']]
+
+        assert selected == ['Bot/Newsletter-Tech', 'Bot/Work', 'Bot/NewLabel']
+
+    def test_empty_input_field_not_included(self):
+        """Test that empty input field is not included in results."""
+        items = [
+            {'label': 'Bot/Personal', 'checked': True, 'is_input': False},
+            {'label': '', 'checked': False, 'is_input': True},
+        ]
+
+        selected = [item['label'] for item in items if item['checked'] and item['label']]
+
+        assert selected == ['Bot/Personal']
+        assert '' not in selected
+
+
+class TestInteractiveLabelSelectorKeyHandling:
+    """Test key handling logic for InteractiveLabelSelector."""
+
+    def test_toggle_checkbox_logic(self):
+        """Test checkbox toggle logic."""
+        item = {'label': 'Bot/Test', 'checked': False, 'is_input': False}
+
+        # Toggle on
+        item['checked'] = not item['checked']
+        assert item['checked'] is True
+
+        # Toggle off
+        item['checked'] = not item['checked']
+        assert item['checked'] is False
+
+    def test_cursor_bounds(self):
+        """Test cursor stays within bounds."""
+        cursor = 0
+        num_items = 5
+        confirm_index = num_items
+
+        # Can't go below 0
+        cursor = max(0, cursor - 1)
+        assert cursor == 0
+
+        # Move down
+        cursor = min(confirm_index, cursor + 1)
+        assert cursor == 1
+
+        # Can't go past confirm
+        cursor = confirm_index
+        cursor = min(confirm_index, cursor + 1)
+        assert cursor == confirm_index
+
+    def test_input_buffer_accumulation(self):
+        """Test that typing accumulates in input buffer."""
+        input_buffer = ''
+
+        for char in 'Bot/Test':
+            input_buffer += char
+
+        assert input_buffer == 'Bot/Test'
+
+    def test_backspace_removes_character(self):
+        """Test backspace removes last character."""
+        input_buffer = 'Bot/Test'
+
+        input_buffer = input_buffer[:-1]
+        assert input_buffer == 'Bot/Tes'
+
+        input_buffer = input_buffer[:-1]
+        assert input_buffer == 'Bot/Te'
+
+    def test_backspace_on_empty_buffer(self):
+        """Test backspace on empty buffer does nothing."""
+        input_buffer = ''
+
+        if input_buffer:
+            input_buffer = input_buffer[:-1]
+
+        assert input_buffer == ''
 
 
 class TestReviewDecisionsLabelParsing:

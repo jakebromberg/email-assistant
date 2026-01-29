@@ -19,8 +19,8 @@ Usage:
 """
 
 import argparse
+import html
 import os
-import shlex
 import sys
 import termios
 import tty
@@ -95,6 +95,202 @@ def getch():
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
     return ch
+
+
+def get_key():
+    """Get a keypress, handling arrow keys and special keys."""
+    ch = getch()
+    if ch == '\x1b':  # Escape sequence
+        ch2 = getch()
+        if ch2 == '[':
+            ch3 = getch()
+            if ch3 == 'A':
+                return 'UP'
+            elif ch3 == 'B':
+                return 'DOWN'
+            elif ch3 == 'C':
+                return 'RIGHT'
+            elif ch3 == 'D':
+                return 'LEFT'
+        return 'ESC'
+    elif ch == '\r' or ch == '\n':
+        return 'ENTER'
+    elif ch == ' ':
+        return 'SPACE'
+    elif ch == '\x7f' or ch == '\x08':  # Backspace
+        return 'BACKSPACE'
+    elif ch == '\x03':  # Ctrl+C
+        return 'CTRL_C'
+    else:
+        return ch
+
+
+class InteractiveLabelSelector:
+    """
+    Interactive label selector with arrow navigation and checkboxes.
+
+    Features:
+    - Arrow up/down to navigate
+    - Space to toggle checkbox
+    - Type to add new labels
+    - Enter on Confirm to accept
+    """
+
+    def __init__(self, current_labels: list[str], available_labels: list[str]):
+        """
+        Initialize selector.
+
+        Args:
+            current_labels: Labels currently on the email (pre-checked)
+            available_labels: All available label options
+        """
+        # Build items list: available labels + current labels not in available
+        self.items = []
+        seen = set()
+
+        # Add available labels first
+        for label in available_labels:
+            checked = label in current_labels
+            self.items.append({'label': label, 'checked': checked, 'is_input': False})
+            seen.add(label)
+
+        # Add any current labels not in available list
+        for label in current_labels:
+            if label not in seen:
+                self.items.append({'label': label, 'checked': True, 'is_input': False})
+
+        # Add empty input field
+        self.items.append({'label': '', 'checked': False, 'is_input': True})
+
+        # Add confirm option
+        self.confirm_index = len(self.items)
+
+        self.cursor = 0
+        self.input_buffer = ''
+        self.editing_input = False
+
+    def _render(self):
+        """Render the selector UI."""
+        # Move cursor up to overwrite previous render
+        total_lines = len(self.items) + 3  # items + header + confirm + instructions
+        print(f"\033[{total_lines}A", end='')  # Move up
+        print("\033[J", end='')  # Clear from cursor to end
+
+        print(colored("Select labels (Space=toggle, Enter=confirm):", Colors.BOLD))
+        print()
+
+        for i, item in enumerate(self.items):
+            is_selected = (i == self.cursor)
+            prefix = colored("→ ", Colors.CYAN) if is_selected else "  "
+
+            if item['is_input']:
+                # Input field
+                checkbox = "[ ]"
+                if item['label']:
+                    label_text = colored(item['label'], Colors.GREEN)
+                    if is_selected and self.editing_input:
+                        label_text += colored("_", Colors.YELLOW)  # Cursor
+                else:
+                    if is_selected:
+                        label_text = colored("(type to add new label)", Colors.YELLOW)
+                        if self.editing_input:
+                            label_text = colored(self.input_buffer + "_", Colors.GREEN)
+                    else:
+                        label_text = colored("(add new...)", Colors.YELLOW)
+                print(f"{prefix}{checkbox} {label_text}")
+            else:
+                # Regular label
+                checkbox = colored("[✓]", Colors.GREEN) if item['checked'] else "[ ]"
+                label_text = item['label']
+                if is_selected:
+                    label_text = colored(label_text, Colors.CYAN + Colors.BOLD)
+                print(f"{prefix}{checkbox} {label_text}")
+
+        # Confirm option
+        print()
+        is_confirm_selected = (self.cursor == self.confirm_index)
+        if is_confirm_selected:
+            print(colored("→ ", Colors.CYAN) + colored("[ Confirm ]", Colors.GREEN + Colors.BOLD))
+        else:
+            print("  [ Confirm ]")
+
+    def _initial_render(self):
+        """Initial render with space for updates."""
+        print(colored("Select labels (Space=toggle, Enter=confirm):", Colors.BOLD))
+        print()
+        for i, item in enumerate(self.items):
+            print()  # Placeholder lines
+        print()
+        print()  # Confirm line
+        # Now render actual content
+        self._render()
+
+    def run(self) -> list[str] | None:
+        """
+        Run the interactive selector.
+
+        Returns:
+            List of selected labels, or None if cancelled
+        """
+        self._initial_render()
+
+        while True:
+            key = get_key()
+
+            if key == 'CTRL_C' or key == 'ESC':
+                return None
+
+            elif key == 'UP':
+                self.editing_input = False
+                self.cursor = max(0, self.cursor - 1)
+
+            elif key == 'DOWN':
+                self.editing_input = False
+                self.cursor = min(self.confirm_index, self.cursor + 1)
+
+            elif key == 'SPACE':
+                if self.cursor < len(self.items):
+                    item = self.items[self.cursor]
+                    if item['is_input']:
+                        # Start editing input
+                        self.editing_input = True
+                    else:
+                        # Toggle checkbox
+                        item['checked'] = not item['checked']
+
+            elif key == 'ENTER':
+                if self.cursor == self.confirm_index:
+                    # Confirm selection
+                    selected = [item['label'] for item in self.items
+                                if item['checked'] and item['label']]
+                    return selected
+                elif self.cursor < len(self.items):
+                    item = self.items[self.cursor]
+                    if item['is_input'] and self.editing_input and self.input_buffer:
+                        # Finalize new label
+                        item['label'] = self.input_buffer
+                        item['checked'] = True
+                        item['is_input'] = False
+                        self.input_buffer = ''
+                        # Add new empty input field
+                        self.items.append({'label': '', 'checked': False, 'is_input': True})
+                        self.confirm_index = len(self.items)
+                        self.cursor += 1  # Move to new input field
+                        self.editing_input = False
+
+            elif key == 'BACKSPACE':
+                if self.editing_input and self.input_buffer:
+                    self.input_buffer = self.input_buffer[:-1]
+
+            elif isinstance(key, str) and len(key) == 1 and key.isprintable():
+                # Typing a character
+                if self.cursor < len(self.items):
+                    item = self.items[self.cursor]
+                    if item['is_input']:
+                        self.editing_input = True
+                        self.input_buffer += key
+
+            self._render()
 
 
 def clear_screen():
@@ -216,7 +412,8 @@ def main():
             print(f"{colored('From:', Colors.CYAN)} {email.from_name or email.from_address}")
             print(f"{colored('Subject:', Colors.CYAN)} {email.subject}")
             print(f"{colored('Date:', Colors.CYAN)} {email.date.strftime('%Y-%m-%d %H:%M')}")
-            print(f"{colored('Snippet:', Colors.CYAN)} {email.snippet[:100] if email.snippet else 'N/A'}...")
+            snippet = html.unescape(email.snippet[:100]) if email.snippet else 'N/A'
+            print(f"{colored('Snippet:', Colors.CYAN)} {snippet}...")
             print()
 
             # Display bot decision
@@ -327,37 +524,19 @@ def main():
 
                     # Handle wrong label (choice 2)
                     if '2' in choices:
-                        categories = categorizer.get_all_categories(session)
-                        print(colored("\nAvailable categories:", Colors.BOLD))
-                        for idx, cat in enumerate(categories, 1):
-                            print(f"{colored(str(idx) + '.', Colors.CYAN)} {cat}")
+                        # Get current labels on the email and available categories
+                        current_labels = [lbl for lbl in (email.labels or []) if lbl.startswith('Bot/')]
+                        available_categories = categorizer.get_all_categories(session)
 
-                        print(colored("\nSelect by number or create new labels:", Colors.YELLOW))
-                        print(colored("  Examples: '1' or '1 3' or 'Bot/MyNewLabel' or '1 \"Bot/My Label\"'", Colors.YELLOW))
-                        cat_input = input(colored("Categories: ", Colors.BOLD)).strip()
+                        print()  # Blank line before selector
+                        selector = InteractiveLabelSelector(current_labels, available_categories)
+                        selected_labels = selector.run()
 
-                        # Parse multiple category choices (supporting quoted strings for multi-word labels)
-                        selected_labels = []
-                        try:
-                            parts = shlex.split(cat_input.replace(',', ' '))
-                        except ValueError:
-                            # If shlex fails, fall back to simple split
-                            parts = cat_input.replace(',', ' ').split()
-
-                        for part in parts:
-                            if part.isdigit():
-                                idx = int(part)
-                                if 1 <= idx <= len(categories):
-                                    selected_labels.append(categories[idx - 1])
-                                else:
-                                    print(colored(f"Warning: Category number {idx} out of range, skipping", Colors.YELLOW))
-                            else:
-                                # Allow entering new category name directly
-                                selected_labels.append(part)
-                                print(colored(f"  → Creating new label: {part}", Colors.CYAN))
-
-                        if not selected_labels:
-                            print(colored("No valid categories selected, skipping label correction.", Colors.YELLOW))
+                        if selected_labels is None:
+                            # User cancelled
+                            print(colored("Label selection cancelled.", Colors.YELLOW))
+                        elif not selected_labels:
+                            print(colored("No labels selected, skipping label correction.", Colors.YELLOW))
                         else:
                             # Store as comma-separated string if multiple, or single string
                             correct_label = ','.join(selected_labels) if len(selected_labels) > 1 else selected_labels[0]
