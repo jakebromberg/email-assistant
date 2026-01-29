@@ -14,7 +14,7 @@ from ..features import (
     MetadataExtractor,
 )
 from ..gmail import GmailClient, GmailOperations
-from ..ml import EmailCategorizer, EmailScorer
+from ..ml import AdaptiveLabelGenerator, EmailCategorizer, EmailScorer
 from ..utils import get_logger
 
 logger = get_logger(__name__)
@@ -174,6 +174,7 @@ class TriagePipeline:
         with self.database.get_session() as session:
             repo = EmailRepository(session)
             store = FeatureStore(session)
+            label_generator = AdaptiveLabelGenerator(session)
             categorizer = EmailCategorizer(session)
 
             # Save email to database
@@ -191,20 +192,28 @@ class TriagePipeline:
             # Make decision
             decision_info = self.scorer.make_decision(score)
 
-            # Categorize (uses learned sender labels from feedback)
-            category = categorizer.categorize(
+            # Generate adaptive labels (priority: user feedback > embeddings > keywords)
+            label_suggestions = label_generator.generate_labels(
                 db_email,
+                email_features,
                 is_newsletter=features.get('is_newsletter', False)
             )
 
-            # Determine labels to apply
-            labels = categorizer.add_confidence_label(
-                category,
-                decision_info['confidence']
-            )
+            # Use most specific label as primary category
+            category = label_suggestions[0].label if label_suggestions else 'Bot/Uncategorized'
 
+            # Build labels list: primary label + secondary if different specificity
+            labels = [category]
+            if len(label_suggestions) > 1 and label_suggestions[1].label != category:
+                labels.append(label_suggestions[1].label)
+
+            # Add confidence marker if low confidence
+            if decision_info['confidence'] == 'low':
+                labels.append(categorizer.LOW_CONFIDENCE)
+
+            # Add archived marker if archiving
             if decision_info['action'] == 'archive':
-                labels = categorizer.add_action_label(labels, 'archive')
+                labels.append(categorizer.AUTO_ARCHIVED)
 
             # Apply decision
             if not dry_run:

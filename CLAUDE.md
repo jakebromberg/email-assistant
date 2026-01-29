@@ -171,18 +171,31 @@ score <= 0.3 (high confidence archive):
   → Can schedule for review if unopened
 ```
 
-**Category Labels:**
+**Adaptive Label System:**
 
-Bot creates semantic labels for organization:
-- **Newsletters**: `Bot/Newsletter-Tech`, `Bot/Newsletter-Finance`, `Bot/Newsletter-News`, `Bot/Newsletter-Other`
-- **Types**: `Bot/Promotional`, `Bot/Automated`, `Bot/Personal`, `Bot/Work`, `Bot/Receipts`
-- **Markers**: `Bot/LowConfidence`, `Bot/AutoArchived`
+Labels are generated adaptively with specificity scoring (1-5, lower = more specific):
+
+**Priority Order:**
+1. **User feedback** (specificity: 1) - Learned sender→label mappings from corrections
+2. **Embedding similarity** (specificity: 2) - Match to existing labeled email clusters
+3. **Sender-specific** (specificity: 2-3) - Auto-generated for frequent senders (e.g., `Bot/Girl-Scouts`)
+4. **Keyword rules** (specificity: 4) - Fallback categories based on content keywords
+
+**Fallback Categories:**
+- **Receipts**: `Bot/Receipts` - order confirmations, invoices, payments
+- **Automated**: `Bot/Automated` - notifications, alerts, GitHub/Jira
+- **Promotional**: `Bot/Promotional` - sales, discounts, offers
+- **Newsletters**: `Bot/Newsletters` - detected via List-Unsubscribe header
+- **Personal**: `Bot/Personal` - default for unmatched emails
+
+**Markers**: `Bot/LowConfidence`, `Bot/AutoArchived`
 
 **Benefits:**
-- Search: `label:Bot/Newsletter-Tech` finds all tech newsletters
-- Filter by category in Gmail UI
-- Labels provide feedback (removal → incorrect categorization)
-- Transparent bot reasoning
+- Learns from your corrections: correct a label once, applies to future emails from that sender
+- Embedding clustering: similar emails get similar labels automatically
+- Sender-specific labels: frequent senders get their own label (e.g., `Bot/Stripe`, `Bot/AWS`)
+- Multiple labels: can apply both specific (`Bot/Stripe`) and generic (`Bot/Receipts`) labels
+- Searchable: `label:Bot/Stripe` finds all Stripe emails
 
 **Model Versioning:**
 - Models saved with timestamps (`model_v{timestamp}.txt`)
@@ -356,7 +369,7 @@ Scheduled jobs:
 
 ## Testing Infrastructure
 
-**Comprehensive test suite with 202 tests and 71% code coverage.**
+**Comprehensive test suite with 227 tests and 71% code coverage.**
 
 ### Test Organization
 
@@ -389,10 +402,10 @@ The project uses a modern, fixture-based testing architecture that eliminates du
 - `features/historical.py`: 93%
 - `ml/evaluation.py`: 93%
 
-**Total Tests**: 202 tests across all modules
+**Total Tests**: 227 tests across all modules
 - `test_database`: 13 tests
 - `test_gmail`: 36 tests
-- `test_ml`: 70 tests
+- `test_ml`: 92 tests
 - `test_scripts`: 27 tests
 - `test_triage`: 2 tests
 - `test_integration`: 43 tests
@@ -435,7 +448,7 @@ The test infrastructure underwent a comprehensive 5-phase refactoring:
 - Created 10 shared + 25 module-specific fixtures
 - Added 15 utility functions for common operations
 - Comprehensive 714-line testing guide (`tests/README.md`)
-- Zero regressions (all 202 tests passing)
+- Zero regressions (all 227 tests passing)
 
 **Documentation**:
 - `tests/README.md` - Complete testing guide with examples

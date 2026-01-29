@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database import Database, EmailRepository
 from src.features import FeatureStore
-from src.ml import EmailCategorizer, EmailScorer
+from src.ml import AdaptiveLabelGenerator, EmailCategorizer, EmailScorer
 from src.utils import Config, setup_logger
 
 
@@ -95,6 +95,7 @@ def main():
         store = FeatureStore(session)
         repo = EmailRepository(session)
         categorizer = EmailCategorizer(session)
+        label_generator = AdaptiveLabelGenerator(session)
 
         # Get emails with features
         all_features = store.get_all_features(limit=args.limit * 2)
@@ -128,8 +129,10 @@ def main():
             # Get decision
             decision = scorer.make_decision(score)
 
-            # Categorize
-            category = categorizer.categorize(email, features.is_newsletter)
+            # Categorize with adaptive labels
+            label_suggestions = label_generator.generate_labels(
+                email, features, features.is_newsletter
+            )
 
             # Display
             logger.info(f"\nEmail {i}/{len(emails_features)}")
@@ -142,8 +145,13 @@ def main():
             logger.info("Model prediction:")
             logger.info(f"  - Score: {score:.3f}")
             logger.info(f"  - Decision: {decision['action']} ({decision['confidence']} confidence)")
-            logger.info(f"  - Category: {category}")
             logger.info(f"  - Reasoning: {decision['reasoning']}")
+            logger.info("")
+            logger.info("Adaptive labels:")
+            for suggestion in label_suggestions:
+                specificity_desc = {1: 'very specific', 2: 'specific', 3: 'moderate', 4: 'generic', 5: 'very generic'}
+                logger.info(f"  - {suggestion.label} (specificity: {suggestion.specificity}/{specificity_desc.get(suggestion.specificity, 'unknown')}, confidence: {suggestion.confidence:.0%})")
+                logger.info(f"    Reason: {suggestion.reason}")
 
             # Check if prediction matches reality
             if email.was_read and score >= 0.5:

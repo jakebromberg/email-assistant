@@ -28,6 +28,9 @@ seaborn==0.13.2
 # Serialization
 joblib==1.4.2
 
+# LLM Integration (for semantic label generation)
+anthropic==0.42.0
+
 # Development/Testing
 pytest==7.4.3
 pytest-cov==4.1.0
