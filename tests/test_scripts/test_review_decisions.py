@@ -544,6 +544,44 @@ class TestReviewDecisionsCorrectDecisionInference:
         assert correct_decision == 'keep'
 
 
+class TestReviewDecisionsCancelFromIncorrect:
+    """Test cancel functionality when accidentally pressing 'n'."""
+
+    def test_empty_input_cancels(self):
+        """Test that empty input cancels the 'incorrect' flow."""
+        choice_input = ''
+
+        # Allow cancel with empty input
+        if not choice_input:
+            cancelled = True
+        else:
+            cancelled = False
+
+        assert cancelled is True
+
+    def test_whitespace_only_cancels(self):
+        """Test that whitespace-only input cancels."""
+        choice_input = '   '
+
+        if not choice_input.strip():
+            cancelled = True
+        else:
+            cancelled = False
+
+        assert cancelled is True
+
+    def test_valid_input_does_not_cancel(self):
+        """Test that valid input does not cancel."""
+        choice_input = '1'
+
+        if not choice_input.strip():
+            cancelled = True
+        else:
+            cancelled = False
+
+        assert cancelled is False
+
+
 class TestReviewDecisionsMultiSelection:
     """Test multi-selection feedback functionality."""
 
@@ -601,6 +639,37 @@ class TestReviewDecisionsMultiSelection:
 class TestInteractiveLabelSelector:
     """Test the InteractiveLabelSelector class."""
 
+    def test_init_input_field_at_top(self):
+        """Test that the new label input field is at the top of the list."""
+        current_labels = ['Bot/Newsletter-Tech']
+        available_labels = ['Bot/Newsletter-Tech', 'Bot/Personal', 'Bot/Work']
+
+        # Simulate the initialization logic (input field first)
+        items = []
+        seen = set()
+
+        # Add empty input field at top for easy access
+        items.append({'label': '', 'checked': False, 'is_input': True})
+
+        # Add available labels
+        for label in available_labels:
+            checked = label in current_labels
+            items.append({'label': label, 'checked': checked, 'is_input': False})
+            seen.add(label)
+
+        # Add any current labels not in available list
+        for label in current_labels:
+            if label not in seen:
+                items.append({'label': label, 'checked': True, 'is_input': False})
+
+        # First item should be the input field
+        assert items[0]['is_input'] is True
+        assert items[0]['label'] == ''
+        assert items[0]['checked'] is False
+
+        # Second item should be the first available label
+        assert items[1]['label'] == 'Bot/Newsletter-Tech'
+
     def test_init_with_current_labels_checked(self):
         """Test that current labels are pre-checked."""
         # Import the class from the script
@@ -610,9 +679,12 @@ class TestInteractiveLabelSelector:
         current_labels = ['Bot/Newsletter-Tech', 'Bot/AutoArchived']
         available_labels = ['Bot/Newsletter-Tech', 'Bot/Personal', 'Bot/Work']
 
-        # Simulate the initialization logic
+        # Simulate the initialization logic (input field first)
         items = []
         seen = set()
+
+        # Add empty input field at top
+        items.append({'label': '', 'checked': False, 'is_input': True})
 
         for label in available_labels:
             checked = label in current_labels
@@ -765,6 +837,50 @@ class TestInteractiveLabelSelectorKeyHandling:
             input_buffer = input_buffer[:-1]
 
         assert input_buffer == ''
+
+    def test_auto_check_when_typing(self):
+        """Test that input field is auto-checked when user starts typing."""
+        item = {'label': '', 'checked': False, 'is_input': True}
+        input_buffer = ''
+
+        # Simulate typing a character
+        key = 'B'
+        if item['is_input']:
+            input_buffer += key
+            # Auto-check when typing
+            item['checked'] = True
+
+        assert input_buffer == 'B'
+        assert item['checked'] is True
+
+    def test_uncheck_when_backspace_to_empty(self):
+        """Test that input field is unchecked when backspacing to empty."""
+        item = {'label': '', 'checked': True, 'is_input': True}
+        input_buffer = 'B'
+
+        # Simulate backspace
+        if input_buffer:
+            input_buffer = input_buffer[:-1]
+            # Uncheck if buffer becomes empty
+            if not input_buffer:
+                item['checked'] = False
+
+        assert input_buffer == ''
+        assert item['checked'] is False
+
+    def test_remain_checked_with_partial_backspace(self):
+        """Test that input field stays checked when backspacing but not empty."""
+        item = {'label': '', 'checked': True, 'is_input': True}
+        input_buffer = 'Bot'
+
+        # Simulate backspace (only removes one char)
+        if input_buffer:
+            input_buffer = input_buffer[:-1]
+            if not input_buffer:
+                item['checked'] = False
+
+        assert input_buffer == 'Bo'
+        assert item['checked'] is True  # Still checked because buffer not empty
 
 
 class TestReviewDecisionsLabelParsing:

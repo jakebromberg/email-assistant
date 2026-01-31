@@ -144,11 +144,14 @@ class InteractiveLabelSelector:
             current_labels: Labels currently on the email (pre-checked)
             available_labels: All available label options
         """
-        # Build items list: available labels + current labels not in available
+        # Build items list: input field first, then available labels + current labels
         self.items = []
         seen = set()
 
-        # Add available labels first
+        # Add empty input field at top for easy access
+        self.items.append({'label': '', 'checked': False, 'is_input': True})
+
+        # Add available labels
         for label in available_labels:
             checked = label in current_labels
             self.items.append({'label': label, 'checked': checked, 'is_input': False})
@@ -158,9 +161,6 @@ class InteractiveLabelSelector:
         for label in current_labels:
             if label not in seen:
                 self.items.append({'label': label, 'checked': True, 'is_input': False})
-
-        # Add empty input field
-        self.items.append({'label': '', 'checked': False, 'is_input': True})
 
         # Add confirm option
         self.confirm_index = len(self.items)
@@ -185,7 +185,7 @@ class InteractiveLabelSelector:
 
             if item['is_input']:
                 # Input field
-                checkbox = "[ ]"
+                checkbox = colored("[✓]", Colors.GREEN) if item['checked'] else "[ ]"
                 if item['label']:
                     label_text = colored(item['label'], Colors.GREEN)
                     if is_selected and self.editing_input:
@@ -281,6 +281,9 @@ class InteractiveLabelSelector:
             elif key == 'BACKSPACE':
                 if self.editing_input and self.input_buffer:
                     self.input_buffer = self.input_buffer[:-1]
+                    # Uncheck if buffer becomes empty
+                    if not self.input_buffer and self.cursor < len(self.items):
+                        self.items[self.cursor]['checked'] = False
 
             elif isinstance(key, str) and len(key) == 1 and key.isprintable():
                 # Typing a character
@@ -289,6 +292,8 @@ class InteractiveLabelSelector:
                     if item['is_input']:
                         self.editing_input = True
                         self.input_buffer += key
+                        # Auto-check when typing
+                        item['checked'] = True
 
             self._render()
 
@@ -496,9 +501,14 @@ def main():
                     print(colored("\nWhat was wrong?", Colors.BOLD))
                     print(colored("1.", Colors.CYAN) + " Wrong decision (archive vs keep)")
                     print(colored("2.", Colors.CYAN) + " Wrong label")
-                    print(colored("Enter one or more (e.g., '1' or '1 2' or '1,2'):", Colors.YELLOW))
+                    print(colored("Enter choice (1, 2, or both), or press Enter to cancel:", Colors.YELLOW))
 
                     choice_input = input(colored("\nChoice: ", Colors.BOLD)).strip()
+
+                    # Allow cancel with empty input
+                    if not choice_input:
+                        print(colored("Cancelled", Colors.YELLOW))
+                        break  # Go back to main prompt for this email
 
                     # Parse multiple choices (space or comma separated)
                     choices = set()
@@ -507,7 +517,7 @@ def main():
                             choices.add(part)
 
                     if not choices:
-                        print(colored("Invalid choice. Please enter 1, 2, or both.", Colors.RED))
+                        print(colored("Invalid choice. Please enter 1, 2, or press Enter to cancel.", Colors.RED))
                         continue
 
                     # Prepare feedback parameters
